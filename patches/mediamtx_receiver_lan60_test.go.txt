@@ -1,0 +1,68 @@
+package srt
+
+import (
+	"fmt"
+	"testing"
+	"time"
+
+	srt "github.com/datarhei/gosrt"
+	"github.com/stretchr/testify/require"
+
+	"github.com/bluenviron/mediamtx/internal/conf"
+	"github.com/bluenviron/mediamtx/internal/defs"
+	"github.com/bluenviron/mediamtx/internal/test"
+)
+
+// TestReceiverLAN60Negotiation exercises the actual MediaMTX listener factory.
+// It checks negotiated packet-delivery allowances, not picture fidelity or
+// measured end-to-end delay. All sockets are test-owned, private and ephemeral.
+func TestReceiverLAN60Negotiation(t *testing.T) {
+	for _, requestedMS := range []uint64{20, 60, 80, 120, 300} {
+		t.Run(fmt.Sprintf("%dms", requestedMS), func(t *testing.T) {
+			const testPassphrase = "lan60-public-test-fixture"
+			s := &Server{
+				Address:           "127.0.0.1:0",
+				ReadTimeout:       conf.Duration(3 * time.Second),
+				WriteTimeout:      conf.Duration(3 * time.Second),
+				UDPMaxPayloadSize: 1472,
+				PathManager: &test.PathManager{
+					FindPathConfImpl: func(req defs.PathFindPathConfReq) (*defs.PathFindPathConfRes, error) {
+						if req.AccessRequest.Name != "lan60-test" || !req.AccessRequest.Publish {
+							return nil, fmt.Errorf("unexpected test path or direction")
+						}
+						return &defs.PathFindPathConfRes{
+							Conf: &conf.Path{SRTPublishPassphrase: testPassphrase},
+						}, nil
+					},
+				},
+				Parent: test.NilLogger,
+			}
+			require.NoError(t, s.Initialize())
+			defer s.Close()
+
+			clientConfig := srt.DefaultConfig()
+			clientConfig.ConnectionTimeout = 2 * time.Second
+			clientConfig.PeerIdleTimeout = 3 * time.Second
+			clientConfig.StreamId = "publish:lan60-test"
+			clientConfig.Passphrase = testPassphrase
+			clientConfig.PBKeylen = 16
+			// Set the directions separately so the reverse direction also proves
+			// that the server's existing PeerLatency=120ms was preserved.
+			clientConfig.PeerLatency = time.Duration(requestedMS) * time.Millisecond
+			clientConfig.ReceiverLatency = 20 * time.Millisecond
+			client, err := srt.Dial("srt", s.ln.Addr().String(), clientConfig)
+			require.NoError(t, err)
+			defer client.Close()
+
+			var stats srt.Statistics
+			client.Stats(&stats)
+			wantForward := max(uint64(60), requestedMS)
+			require.Equal(t, wantForward, stats.Instantaneous.MsSendTsbPdDelay,
+				"camera-to-listener allowance must be max(requested,60ms)")
+			require.Equal(t, uint64(120), stats.Instantaneous.MsRecvTsbPdDelay,
+				"listener-to-camera allowance must retain the server's120ms PeerLatency")
+			t.Logf("requested=%dms camera_to_listener=%dms reverse=%dms encryption=AES-128",
+				requestedMS, stats.Instantaneous.MsSendTsbPdDelay, stats.Instantaneous.MsRecvTsbPdDelay)
+		})
+	}
+}

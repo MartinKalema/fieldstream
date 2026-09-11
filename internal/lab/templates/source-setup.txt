@@ -1,0 +1,68 @@
+FIELD VIDEO LAB — SOURCE CONNECTION
+
+Source: {{.Label}}
+Source ID: {{.ID}}
+
+Keep this file private. It contains this source's connection password.
+Give each device its own source. Do not reuse these credentials on another device.
+Registered sources can send video at the same time.
+
+1. Connect the source device and this computer to the same trusted local network.
+2. Use a video sender that supports SRT caller mode, a Stream ID and an encryption
+   passphrase. SRT carries live video between the sender and this computer.
+   Larix Broadcaster is one option for a phone or tablet; a compatible camera,
+   encoder or another computer can also send video using these settings.
+3. Start the lab on this computer using: ./lab start
+4. Add an outgoing connection named {{.Label}} in the sender.
+
+Connection URL:
+{{.ConnectionURL}}
+
+Also enter these connection settings (the URL alone is not enough):
+Connection type: SRT
+Mode: Caller (the sender starts the connection)
+Host / address: {{.Host}}
+Port: {{.Port}}
+Stream ID: {{.StreamID}}
+Encryption passphrase: {{.PublishPassphrase}}
+Encryption key length: 128 bits (16 bytes)
+Latency: 300 milliseconds
+
+Starting video settings:
+Video format: H.264
+Resolution: 1280 x 720 (720p)
+Frame rate: 30 frames per second
+Bitrate: 2000 kilobits per second (2 megabits per second)
+Keyframe interval: 2 seconds, if available
+B-frames: off, if this option is available
+Audio: off for this first test
+Container: MPEG-TS, if the sender asks
+
+5. Save the connection and start sending video.
+6. On this computer, open these addresses in a browser:
+Nearby viewer: {{.NearbyViewerURL}}
+Simulated remote viewer: {{.RemoteViewerURL}}
+
+For a phone or tablet using Larix, allow camera and local-network access.
+Tap +, then choose "Connection". The RTMP address shown in the URL field is an
+example. Replace the whole field with the SRT Connection URL above, including
+"srt://". Do not add "/live/stream". Use the SRT settings for Stream ID,
+passphrase and Caller mode. If extra settings are not visible, save the connection
+and reopen its details. WebRTC Connection and Zixi Connection are other methods;
+this lab's camera input uses the ordinary Connection option.
+Use the connection fields above, select the saved connection, and start sending.
+
+Both viewers currently run on this computer. They represent two separate parts
+of the future system; they do not yet prove recovery from a computer or internet
+failure. Only incoming video connections are open to the local network.
+
+If the computer's firewall asks whether MediaMTX may accept incoming connections,
+allow it for this trusted local test. No router port forwarding is needed.
+
+These settings encrypt the video. The connection details themselves are not fully
+hidden by SRT. Use this version on a trusted network and keep this file private.
+A future private network tunnel will also protect those connection details.
+
+If this computer's network address changes, stop the lab and run ./lab setup again.
+Existing source IDs and passwords are kept. Update the address in each sender
+before restarting the lab. SOURCES.txt lists all sources and their guide files.

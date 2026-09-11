@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camera delay check</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#10151c;color:#f4f7fb;font:17px system-ui,sans-serif;padding:24px}main{max-width:1400px;margin:auto}h1{font-size:25px;margin:0 0 8px}p{line-height:1.5;margin:8px 0;color:#c5d0de}.target{background:#fff;color:#080c10;border:8px solid #70d6b0;padding:16px;text-align:center;margin:20px 0}.target small{font-size:16px;font-weight:800;letter-spacing:.1em}.clock{font:800 clamp(54px,11vw,108px)/1.2 ui-monospace,monospace;font-variant-numeric:tabular-nums}.views{display:grid;grid-template-columns:1fr 1fr;gap:18px}article{border:1px solid #455267;background:#17202b;border-radius:10px;overflow:hidden}h2{font-size:20px;margin:14px 18px}iframe{display:block;width:100%;aspect-ratio:16/9;border:0;background:black}.note{font-size:15px}a{color:#90d6ff}@media(max-width:800px){body{padding:16px}.views{grid-template-columns:1fr}.target{margin:14px 0;padding:10px}}
+</style>
+<main data-source="{{.Source}}" data-local-port="{{.LocalPort}}" data-forwarded-port="{{.ForwardedPort}}">
+<h1>Measure the age of the picture</h1>
+<p>Keep broadcasting. Point the camera at the large white clock below so the digits fill most of its picture.</p>
+<section class="target" aria-label="Clock to film"><small>TIME NOW — POINT THE CAMERA HERE</small><div class="clock" id="clock">0000.00</div><div>seconds since this page opened</div></section>
+<div class="views">
+<article><h2>1. Local picture</h2><iframe id="local" title="Local camera picture" allow="autoplay; fullscreen" allowfullscreen></iframe></article>
+<article><h2>2. Forwarded picture</h2><iframe id="forwarded" title="Forwarded camera picture" allow="autoplay; fullscreen" allowfullscreen></iframe></article>
+</div>
+<p>The delay is the big clock's number minus the number visible inside each video. Example: 42.50 − 40.20 = <strong>2.30 seconds behind</strong>.</p>
+<p class="note">Wait for both videos to settle. A screenshot containing all three clocks gives an approximate measurement. Screen refresh, camera exposure and video frame timing limit the precision. This page does not calculate delay automatically.</p>
+</main>
+<script>
+const config = document.querySelector('main').dataset;
+const requested = new URLSearchParams(location.search).get('source') || config.source;
+const source = /^[a-z][a-z0-9-]{0,31}$/.test(requested) ? requested : config.source;
+document.getElementById('local').src = 'http://127.0.0.1:' + config.localPort + '/' + encodeURIComponent(source) + '/?muted=true';
+document.getElementById('forwarded').src = 'http://127.0.0.1:' + config.forwardedPort + '/' + encodeURIComponent(source) + '/?muted=true';
+const beginning = performance.now();
+function tick(){document.getElementById('clock').textContent=((performance.now()-beginning)/1000).toFixed(2).padStart(7,'0');requestAnimationFrame(tick)}
+tick();
+</script>
+</html>

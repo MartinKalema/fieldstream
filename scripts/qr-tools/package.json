@@ -1,0 +1,13 @@
+{
+  "name": "field-video-lab-qr-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private, locally verified Larix Grove connection QR generation",
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node --test qr.test.cjs" },
+  "dependencies": {
+    "jsqr": "1.4.0",
+    "pngjs": "7.0.0",
+    "qrcode": "1.5.4"
+  }
+}

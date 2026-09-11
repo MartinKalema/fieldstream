@@ -1,0 +1,137 @@
+package srt
+
+import (
+	"encoding/binary"
+	"fmt"
+	"io"
+	"net"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+)
+
+// Shift timestamps on every packet from one peer, including its handshake.
+// This models a clock that started before the connection, without a slow test
+// or any change to packet contents/encryption. All ports are ephemeral loopback.
+func clockTestProxy(t *testing.T, server *net.UDPAddr, callerShift, listenerShift uint32) string {
+	t.Helper()
+	proxy, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		buf := make([]byte, 65536)
+		var caller *net.UDPAddr
+		for {
+			n, from, err := proxy.ReadFromUDP(buf)
+			if err != nil {
+				return
+			}
+			to, shift := server, callerShift
+			if from.Port == server.Port {
+				if caller == nil {
+					continue
+				}
+				to, shift = caller, listenerShift
+			} else {
+				caller = from
+			}
+			if n >= 16 {
+				binary.BigEndian.PutUint32(buf[8:12], binary.BigEndian.Uint32(buf[8:12])+shift)
+			}
+			if _, err := proxy.WriteToUDP(buf[:n], to); err != nil {
+				return
+			}
+		}
+	}()
+	t.Cleanup(func() { proxy.Close(); <-done })
+	return proxy.LocalAddr().String()
+}
+
+func clockTestTransfer(t *testing.T, from, to Conn) {
+	t.Helper()
+	data := []byte("encrypted-clock-check")
+	started := time.Now()
+	_, err := from.Write(data)
+	require.NoError(t, err)
+	result := make(chan error, 1)
+	go func() {
+		got := make([]byte, len(data))
+		_, err := io.ReadFull(to, got)
+		if err == nil && string(got) != string(data) {
+			err = fmt.Errorf("payload changed")
+		}
+		result <- err
+	}()
+	select {
+	case err := <-result:
+		require.NoError(t, err)
+		// Retain the negotiated 120 ms repair window; do not bypass buffering.
+		require.GreaterOrEqual(t, time.Since(started), 80*time.Millisecond)
+	case <-time.After(800 * time.Millisecond):
+		to.Close()
+		<-result
+		t.Fatal("packet inherited the peer's pre-connection clock age")
+	}
+}
+
+func TestReceiveClockIndependentOfPeerConnectionAge(t *testing.T) {
+	for _, tc := range []struct {
+		name                       string
+		callerShift, listenerShift uint32
+	}{
+		{"normal", 0, 0},
+		{"caller-started-two-seconds-earlier", 2_000_000, 0},
+		{"listener-started-two-seconds-earlier", 0, 2_000_000},
+		// Handshake occurs before rollover; data is sent after rollover.
+		{"caller-timestamp-rollover", ^uint32(0) - 50_000, 0},
+		{"listener-timestamp-rollover", 0, ^uint32(0) - 50_000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := DefaultConfig()
+			cfg.Passphrase = "clock-test-secret"
+			cfg.StreamId = "clock-test"
+			ln, err := Listen("srt", "127.0.0.1:0", cfg)
+			require.NoError(t, err)
+			defer ln.Close()
+			proxy := clockTestProxy(t, ln.Addr().(*net.UDPAddr), tc.callerShift, tc.listenerShift)
+			type accepted struct {
+				conn Conn
+				err  error
+			}
+			ready := make(chan accepted, 1)
+			go func() {
+				req, err := ln.Accept2()
+				if err != nil {
+					ready <- accepted{err: err}
+					return
+				}
+				if err = req.SetPassphrase(cfg.Passphrase); err != nil {
+					ready <- accepted{err: err}
+					return
+				}
+				conn, err := req.Accept()
+				ready <- accepted{conn, err}
+			}()
+			caller, err := Dial("srt", proxy, cfg)
+			require.NoError(t, err)
+			defer caller.Close()
+			var listener Conn
+			select {
+			case a := <-ready:
+				require.NoError(t, a.err)
+				listener = a.conn
+			case <-time.After(time.Second):
+				t.Fatal("accept timed out")
+			}
+			defer listener.Close()
+			// Local send timestamps must not be shifted into the peer's clock.
+			require.Less(t, caller.(*dialer).conn.getTimestamp(), uint64(500_000))
+			require.Less(t, listener.(*srtConn).getTimestamp(), uint64(500_000))
+			time.Sleep(80 * time.Millisecond)
+			clockTestTransfer(t, caller, listener)
+			clockTestTransfer(t, listener, caller)
+		})
+	}
+}

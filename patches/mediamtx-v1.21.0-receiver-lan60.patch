@@ -1,0 +1,10 @@
+--- a/internal/servers/srt/server.go
++++ b/internal/servers/srt/server.go
+@@ -108,6 +108,7 @@
+ // Initialize initializes the server.
+ func (s *Server) Initialize() error {
+ 	conf := srt.DefaultConfig()
++	conf.ReceiverLatency = 60 * time.Millisecond
+ 	conf.ConnectionTimeout = time.Duration(s.ReadTimeout)
+ 	conf.PeerIdleTimeout = time.Duration(s.ReadTimeout)
+ 	conf.PayloadSize = uint32(srtMaxPayloadSize(s.UDPMaxPayloadSize))

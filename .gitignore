@@ -1,0 +1,29 @@
+.tools/
+.local/
+recordings/
+reports/
+SETUP-IPAD.txt
+SOURCES.txt
+.mediamtx-reference.yml
+.DS_Store
+
+# Machine credentials and generated certificates
+auto.key
+auto.crt
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Generated outputs and local dependency installs
+node_modules/
+*.log
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+coverage.out
+*.test

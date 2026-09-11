@@ -1,0 +1,31 @@
+#!/bin/sh
+# Development launcher. Installed releases can invoke the built binary directly.
+set -eu
+LAB_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+LAB_BINARY="$LAB_ROOT/.tools/bin/videolab"
+umask 077
+if [ "${1:-}" = "build" ]; then
+    shift
+    if [ "$#" -ne 0 ]; then
+        echo 'Usage: ./lab build' >&2
+        exit 1
+    fi
+    if ! command -v go >/dev/null 2>&1; then
+        echo 'Building from source needs Go. Running an already built release does not.' >&2
+        exit 1
+    fi
+    mkdir -p "$LAB_ROOT/.tools/bin"
+    cd "$LAB_ROOT"
+    LAB_BUILD=$(mktemp "$LAB_ROOT/.tools/bin/videolab-build.XXXXXX")
+    trap 'rm -f "$LAB_BUILD"' EXIT HUP INT TERM
+    go build -trimpath -o "$LAB_BUILD" ./cmd/videolab
+    chmod 700 "$LAB_BUILD"
+    mv "$LAB_BUILD" "$LAB_BINARY"
+    echo 'Built the Go control program.'
+    exit 0
+fi
+if [ ! -x "$LAB_BINARY" ]; then
+    echo 'Build the control program first: ./lab build' >&2
+    exit 1
+fi
+exec "$LAB_BINARY" --root "$LAB_ROOT" "$@"

@@ -1,0 +1,118 @@
+--- a/conn_request.go
++++ b/conn_request.go
+@@ -71,6 +71,9 @@
+ }
+ 
+ func newConnRequest(ln *listener, p packet.Packet) *connRequest {
++	// Keep the peer's clock anchor before reusing the packet for our response.
++	peerTimestamp := p.Header().Timestamp
++	receivedAt := time.Now()
+ 	cif := &packet.CIFHandshake{}
+ 
+ 	err := p.UnmarshalCIF(cif)
+@@ -242,9 +245,9 @@
+ 			ln:           ln,
+ 			addr:         p.Header().Addr,
+ 			localAddr:    p.Header().LocalAddr,
+-			start:        time.Now(),
++			start:        receivedAt,
+ 			peerSocketId: cif.SRTSocketId,
+-			timestamp:    p.Header().Timestamp,
++			timestamp:    peerTimestamp,
+ 			config:       config,
+ 			handshake:    cif,
+ 		}
+@@ -436,7 +439,8 @@
+ 		start:                       req.start,
+ 		socketId:                    req.socketId,
+ 		peerSocketId:                req.peerSocketId,
+-		tsbpdTimeBase:               uint64(req.timestamp),
++		peerTimestamp:               req.timestamp,
++		peerTimestampReceivedAt:     req.start,
+ 		tsbpdDelay:                  uint64(recvTsbpdDelay) * 1000,
+ 		peerTsbpdDelay:              uint64(sendTsbpdDelay) * 1000,
+ 		initialPacketSequenceNumber: req.handshake.InitialPacketSequenceNumber,
+--- a/dial.go
++++ b/dial.go
+@@ -318,6 +318,9 @@
+ }
+ 
+ func (dl *dialer) handleHandshake(p packet.Packet) {
++	// The response below overwrites the header, including its timestamp.
++	peerTimestamp := p.Header().Timestamp
++	receivedAt := time.Now()
+ 	cif := &packet.CIFHandshake{}
+ 
+ 	err := p.UnmarshalCIF(cif)
+@@ -543,7 +546,8 @@
+ 			start:                       dl.start,
+ 			socketId:                    dl.socketId,
+ 			peerSocketId:                cif.SRTSocketId,
+-			tsbpdTimeBase:               uint64(time.Since(dl.start).Microseconds()),
++			peerTimestamp:               peerTimestamp,
++			peerTimestampReceivedAt:     receivedAt,
+ 			tsbpdDelay:                  uint64(recvTsbpdDelay) * 1000,
+ 			peerTsbpdDelay:              uint64(sendTsbpdDelay) * 1000,
+ 			initialPacketSequenceNumber: cif.InitialPacketSequenceNumber,
+--- a/connection.go
++++ b/connection.go
+@@ -170,7 +170,9 @@
+ 
+ 	initialPacketSequenceNumber circular.Number
+ 
+-	tsbpdTimeBase       uint64 // microseconds
++	// Local monotonic time corresponding to timestamp zero on the peer.
++	// This receive clock is separate from start, which timestamps our sends.
++	tsbpdTimeBase       time.Time
+ 	tsbpdWrapPeriod     bool
+ 	tsbpdTimeBaseOffset uint64 // microseconds
+ 	tsbpdDelay          uint64 // microseconds
+@@ -227,7 +229,8 @@
+ 	start                       time.Time
+ 	socketId                    uint32
+ 	peerSocketId                uint32
+-	tsbpdTimeBase               uint64 // microseconds
++	peerTimestamp               uint32
++	peerTimestampReceivedAt     time.Time
+ 	tsbpdDelay                  uint64 // microseconds
+ 	peerTsbpdDelay              uint64 // microseconds
+ 	initialPacketSequenceNumber circular.Number
+@@ -239,6 +242,10 @@
+ }
+ 
+ func newSRTConn(config srtConnConfig) *srtConn {
++	receivedAt := config.peerTimestampReceivedAt
++	if receivedAt.IsZero() {
++		receivedAt = config.start
++	}
+ 	c := &srtConn{
+ 		version:                     config.version,
+ 		isCaller:                    config.isCaller,
+@@ -248,7 +255,8 @@
+ 		start:                       config.start,
+ 		socketId:                    config.socketId,
+ 		peerSocketId:                config.peerSocketId,
+-		tsbpdTimeBase:               config.tsbpdTimeBase,
++		tsbpdTimeBase:               receivedAt.Add(-time.Duration(config.peerTimestamp) * time.Microsecond),
++		tsbpdWrapPeriod:             config.peerTimestamp > packet.MAX_TIMESTAMP-(30*1000000),
+ 		tsbpdDelay:                  config.tsbpdDelay,
+ 		peerTsbpdDelay:              config.peerTsbpdDelay,
+ 		initialPacketSequenceNumber: config.initialPacketSequenceNumber,
+@@ -409,7 +417,7 @@
+ 		case t := <-ticker.C:
+ 			tickTime := uint64(t.Sub(c.start).Microseconds())
+ 
+-			c.recv.Tick(c.tsbpdTimeBase + tickTime)
++			c.recv.Tick(uint64(t.Sub(c.tsbpdTimeBase).Microseconds()))
+ 			c.snd.Tick(tickTime)
+ 		}
+ 	}
+@@ -715,7 +723,7 @@
+ 		}
+ 	}
+ 
+-	header.PktTsbpdTime = c.tsbpdTimeBase + tsbpdTimeBaseOffset + uint64(header.Timestamp) + c.tsbpdDelay + c.tsbpdDrift
++	header.PktTsbpdTime = tsbpdTimeBaseOffset + uint64(header.Timestamp) + c.tsbpdDelay + c.tsbpdDrift
+ 
+ 	c.log("data:recv:dump", func() string { return p.Dump() })
+ 
