@@ -223,7 +223,11 @@ func (a *Archiver) Run(ctx context.Context) (runError error) {
 		}
 	}()
 	if !a.config.Enabled {
-		return a.refreshSummary(ctx)
+		err := a.refreshSummary(ctx)
+		if ctx.Err() != nil {
+			return nil
+		}
+		return err
 	}
 	lock, err := fileLock(filepath.Join(a.paths.Local, "archive.lock"), true)
 	if err != nil {
@@ -231,9 +235,15 @@ func (a *Archiver) Run(ctx context.Context) (runError error) {
 	}
 	defer lock.Close()
 	if err = a.catalog.bindArchiveDestination(ctx, a.config.AccountID+"/"+a.config.Bucket+"/"+a.config.Prefix); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
 		return err
 	}
 	if err = a.catalog.recoverUploads(ctx); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
 		return err
 	}
 	a.updateState(func(s *ArchiveState) { s.Running = true })
@@ -250,6 +260,9 @@ func (a *Archiver) Run(ctx context.Context) (runError error) {
 		// Only this worker owns the archive lock. Repair a previous attempt whose
 		// completion could not be committed, without requiring a process restart.
 		if err = a.catalog.recoverUploads(ctx); err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
 			return errors.New("archive catalog is unavailable")
 		}
 		worked, err := a.uploadNext(ctx)
@@ -260,6 +273,9 @@ func (a *Archiver) Run(ctx context.Context) (runError error) {
 			a.updateState(func(s *ArchiveState) { s.LastError = safeArchiveError(err) })
 		}
 		if e := a.refreshSummary(ctx); e != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
 			return errors.New("archive catalog is unavailable")
 		}
 		if worked && err == nil {
