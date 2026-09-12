@@ -17,6 +17,10 @@ visible and frame **only the large white clock and pattern** with the camera.
 Make the pattern large and sharp. Keep the video players and their smaller,
 repeated copies of the pattern outside the camera picture.
 
+Use the same browser page to display the target and read the results. Each
+open copy creates its own test session; filming one copy while reading another
+does not make a valid comparison.
+
 The test lasts at most 120 seconds. **Stop measurement** ends it sooner. A
 hidden page, interrupted browser observation or reconnected viewer ends the run;
 start a fresh test afterward. Stopping this test closes its background pattern
@@ -168,9 +172,47 @@ interrupted observations, late results, a fresh run after reconnecting and
 started work that is canceled before completion. Those tests check the stated
 rules; they do not add physical-camera accuracy evidence.
 
-The physical-camera manual cross-check remains pending. At the latest check,
-the camera still showed the keyboard rather than the direct white target, so
-no valid physical comparison could be made. The fixture readings are not exact
-bounds and do not establish camera-to-screen accuracy, a system maximum or
-performance under every browser workload. A later physical check should record
-the setup, valid and failed readings, and the simultaneous filmed-clock result.
+### Physical camera: 12 September 2026
+
+A fresh 120-second run used Larix on the iPad, the copy profile, and local
+forwarding between programs on the same Mac. The camera framed the direct white
+target closely. The page ran in the Codex in-app browser; its exact browser
+version was not captured.
+
+| Completed run | Local picture | Forwarded picture |
+| --- | --- | --- |
+| Successful / started reads | 192 / 232 | 200 / 231 |
+| Median accepted midpoint | 0.340 s | 0.370 s |
+| Largest sampled upper endpoint | 0.480 s | 0.500 s |
+| Late presentation checks / worker timeouts | 0 / 0 | 0 / 0 |
+| Checks skipped while the reader was busy | 0 | 12 |
+
+All started reads completed. The current readings cleared when the run ended;
+the table contains historical results. Failed reads remain missing measurements.
+The Larix trial watermark crossed the pattern, but these observations do not
+establish why every unsuccessful read failed.
+
+Two manual clock screenshots from that run and one from a separate repeat were
+compared with nearby automatic readings:
+
+| Direct clock | Manual local / forwarded | Nearby automatic local | Nearby automatic forwarded |
+| --- | --- | --- | --- |
+| 409.67 s | 0.34 / 0.38 s | 0.30–0.42 s | 0.32–0.44 s |
+| 443.53 s | 0.38 / 0.42 s | 0.22–0.34 s | 0.30–0.42 s |
+| 545.46 s, separate repeat | 0.36 / 0.40 s | 0.31–0.41 s | 0.32–0.43 s |
+
+The manual values subtract the two filmed clock numbers from the direct clock
+in each screenshot. The automatic values concern separate sampled frames and
+were read at nearby times. In the second comparison, the manual local value
+exceeds the nearby automatic upper endpoint. No endpoint correction or fixed
+accuracy tolerance was established from these observations.
+
+An earlier run on a duplicate page was excluded because the camera filmed a
+different page from the one being sampled. A whole-monitor view with a small
+target and recursive player images produced no accepted automatic readings.
+The successful close-target run therefore does not establish that the reader
+works at every framing or scale.
+
+These are short local observations. Neither the fixture nor the physical run
+establishes exact camera-to-screen bounds, a system maximum, or accuracy under
+every browser workload, camera and lighting condition.

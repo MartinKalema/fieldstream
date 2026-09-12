@@ -12,7 +12,7 @@ Open the printed local URL. Point the broadcasting camera at the large clock and
 
 For the optional [automatic picture-delay test](automatic-picture-delay.md), press **Start 2-minute measurement** and film only the direct white clock and changing pattern. Keep the page visible. It samples each player at most twice per second and reports approximate marker-age intervals, with failed and skipped work reported separately. These intervals are not verified sensor capture times or guaranteed delay bounds; use the filmed clock to cross-check them.
 
-The [validation notes](automatic-picture-delay.md#checks-and-current-validation) record generated-video browser checks, including an intentional delay and a held pattern. The physical-camera manual cross-check remains pending.
+The [validation notes](automatic-picture-delay.md#checks-and-current-validation) record generated-video browser checks and a two-minute physical-camera run. That run accepted 192/232 local and 200/231 forwarded readings, with median midpoints of 0.340 and 0.370 seconds. Nearby manual clock observations are included with their timing limits; they do not establish exact accuracy or maximum delay.
 
 The page uses two native browser video players with separate pause controls, picture-progress warnings and **Reconnect this viewer** buttons. An open connection does not prove that pictures are advancing. The warning watches browser presentation timestamps and keeps browser-default buffering unchanged. It does not establish the age of the original camera picture. See [how the warning works and what it cannot detect](picture-stall-warning.md).
 
