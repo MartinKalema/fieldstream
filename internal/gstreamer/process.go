@@ -1,4 +1,4 @@
-package main
+package gstreamer
 
 import (
 	"context"
@@ -9,7 +9,8 @@ import (
 	"time"
 )
 
-type processResult struct {
+// Result describes process lifetime and cleanup, not video presentation or age.
+type Result struct {
 	StartedAt    time.Time `json:"started_at"`
 	EndedAt      time.Time `json:"ended_at"`
 	Result       string    `json:"result"`
@@ -18,11 +19,18 @@ type processResult struct {
 	ProcessError string    `json:"process_error,omitempty"`
 }
 
-func runProcess(ctx context.Context, cmd *exec.Cmd, duration, grace time.Duration, output io.Writer) (result processResult) {
+// RunProcess starts cmd in its own process group and cleans up that group when
+// it finishes. A zero duration waits until process exit or context cancellation.
+// A positive duration bounds the run and then allows grace for SIGINT shutdown.
+func RunProcess(ctx context.Context, cmd *exec.Cmd, duration, grace time.Duration, output io.Writer) (result Result) {
 	result.StartedAt = time.Now().UTC()
 	defer func() { result.EndedAt = time.Now().UTC() }()
 	if ctx.Err() != nil {
 		result.Result = "canceled"
+		return result
+	}
+	if duration < 0 || grace < 0 {
+		result.Result, result.ProcessError = "start_failed", "duration and grace cannot be negative"
 		return result
 	}
 	cmd.Stdout, cmd.Stderr = output, output
@@ -37,9 +45,16 @@ func runProcess(ctx context.Context, cmd *exec.Cmd, duration, grace time.Duratio
 	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	reason, waitErr, exited := waitForStop(ctx, done, timer.C)
+	var deadline <-chan time.Time
+	if duration > 0 {
+		timer := time.NewTimer(duration)
+		defer timer.Stop()
+		deadline = timer.C
+	}
+	reason, waitErr, exited := waitForStop(ctx, done, deadline)
+	if duration == 0 && reason == "exited_early" {
+		reason = "exited"
+	}
 	result.Result = reason
 	if !exited {
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGINT)
@@ -94,8 +109,9 @@ func waitForStop(ctx context.Context, done <-chan error, deadline <-chan time.Ti
 	return reason, waitErr, exited
 }
 
-// Keep draining after the cap so a verbose process cannot block on its output.
-type limitedLog struct {
+// LimitedLog keeps draining after the cap so verbose process output cannot
+// block. Snapshot reports dropped bytes and any underlying writer error.
+type LimitedLog struct {
 	mu      sync.Mutex
 	writer  io.Writer
 	limit   int64
@@ -104,7 +120,22 @@ type limitedLog struct {
 	err     error
 }
 
-func (log *limitedLog) Write(p []byte) (int, error) {
+// NewLimitedLog limits retained bytes, treating a negative limit as zero.
+func NewLimitedLog(writer io.Writer, limit int64) *LimitedLog {
+	if writer == nil {
+		writer = io.Discard
+	}
+	return &LimitedLog{writer: writer, limit: max(0, limit)}
+}
+
+// Snapshot can be called while process output is still arriving.
+func (log *LimitedLog) Snapshot() (kept, dropped int64, err error) {
+	log.mu.Lock()
+	defer log.mu.Unlock()
+	return log.kept, log.dropped, log.err
+}
+
+func (log *LimitedLog) Write(p []byte) (int, error) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	n := len(p)

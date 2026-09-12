@@ -13,10 +13,10 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"syscall"
 	"time"
 
+	"fieldvideolab/internal/gstreamer"
 	"fieldvideolab/internal/lab"
 )
 
@@ -45,13 +45,13 @@ func parseOptions(args []string, output io.Writer) (options, error) {
 	flags.IntVar(&cfg.LatencyMS, "latency-ms", 100, "requested receiver waiting time, from 0 to 200 milliseconds; lower settings may produce broken pictures")
 	flags.StringVar(&cfg.Decoder, "decoder", "software", "software (avdec_h264) or hardware (vtdec_hw)")
 	flags.StringVar(&cfg.Sink, "sink", "gl", "gl (native window) or headless (no picture displayed)")
-	flags.StringVar(&cfg.GSTLaunch, "gst-launch", "gst-launch-1.0", "installed gst-launch-1.0 executable")
+	flags.StringVar(&cfg.GSTLaunch, "gst-launch", "", "executable override; otherwise use the private runtime or PATH")
 	flags.BoolVar(&cfg.DryRun, "dry-run", false, "print the argument list without launching or writing a report")
 	if err := flags.Parse(args); err != nil {
 		return cfg, err
 	}
-	if flags.NArg() != 0 || cfg.Root == "" || cfg.GSTLaunch == "" || !sourcePattern.MatchString(cfg.Source) {
-		return cfg, errors.New("use flags, a project folder, an executable and a valid source ID")
+	if flags.NArg() != 0 || cfg.Root == "" || !sourcePattern.MatchString(cfg.Source) {
+		return cfg, errors.New("use flags, a project folder and a valid source ID")
 	}
 	if cfg.Duration < 5*time.Second || cfg.Duration > 120*time.Second {
 		return cfg, errors.New("duration must be from 5s to 120s")
@@ -77,61 +77,19 @@ func parseOptions(args []string, output io.Writer) (options, error) {
 }
 
 func pipeline(cfg options, sources []lab.SourceConfig) ([]string, error) {
-	// Validate here too: callers cannot supply URL syntax through a source ID.
-	if !sourcePattern.MatchString(cfg.Source) {
-		return nil, errors.New("invalid source ID")
-	}
-	registered := false
-	for _, source := range sources {
-		registered = registered || source.ID == cfg.Source
-	}
-	if !registered {
-		return nil, errors.New("source is not registered in this lab")
-	}
-	port := lab.Field.RTSP
-	if cfg.Route == "forwarded" {
-		port = lab.Central.RTSP
-	} else if cfg.Route != "local" {
-		return nil, errors.New("invalid route")
-	}
-	if cfg.LatencyMS < 0 || cfg.LatencyMS > 200 {
-		return nil, errors.New("invalid receiver waiting time")
-	}
-	args := []string{"-e", "-m", "rtspsrc", "location=rtsp://127.0.0.1:" + strconv.Itoa(port) + "/" + cfg.Source,
-		"protocols=tcp", "latency=" + strconv.Itoa(cfg.LatencyMS), "drop-on-latency=true", "tcp-timeout=5000000",
-		"!", "application/x-rtp,media=video,encoding-name=H264", "!", "rtph264depay", "!", "h264parse",
-		"!", "video/x-h264,stream-format=avc,alignment=au", "!"}
-	switch cfg.Decoder {
-	case "software":
-		args = append(args, "avdec_h264", "max-threads=1")
-	case "hardware":
-		args = append(args, "vtdec_hw")
-	default:
-		return nil, errors.New("invalid decoder")
-	}
-	// Drop only decoded pictures. Dropping arbitrary compressed H.264 frames can
-	// damage the later pictures that depend on them.
-	args = append(args, "!", "queue", "max-size-buffers=1", "max-size-bytes=0", "max-size-time=0", "leaky=downstream", "!", "videoconvert", "!")
-	switch cfg.Sink {
-	case "gl":
-		args = append(args, "glimagesink", "sync=false")
-	case "headless":
-		args = append(args, "fakesink", "sync=false")
-	default:
-		return nil, errors.New("invalid sink")
-	}
-	return args, nil
+	return gstreamer.Pipeline(gstreamer.Config{Source: cfg.Source, Route: cfg.Route,
+		Decoder: cfg.Decoder, Sink: cfg.Sink, LatencyMS: cfg.LatencyMS}, sources)
 }
 
 type report struct {
-	Version          int           `json:"version"`
-	Config           options       `json:"config"`
-	RequestedSeconds float64       `json:"requested_seconds"`
-	Argv             []string      `json:"argv"`
-	Process          processResult `json:"process"`
-	LogBytesKept     int64         `json:"log_bytes_kept"`
-	LogBytesDropped  int64         `json:"log_bytes_dropped"`
-	Notes            []string      `json:"notes"`
+	Version          int              `json:"version"`
+	Config           options          `json:"config"`
+	RequestedSeconds float64          `json:"requested_seconds"`
+	Argv             []string         `json:"argv"`
+	Process          gstreamer.Result `json:"process"`
+	LogBytesKept     int64            `json:"log_bytes_kept"`
+	LogBytesDropped  int64            `json:"log_bytes_dropped"`
+	Notes            []string         `json:"notes"`
 }
 
 func privateReportDir(root string) (string, error) {
@@ -166,11 +124,22 @@ func run(ctx context.Context, args []string, output, errorOutput io.Writer) int 
 		return 1
 	}
 	if cfg.DryRun {
-		return printJSON(output, append([]string{cfg.GSTLaunch}, argv...), errorOutput)
+		executable := cfg.GSTLaunch
+		if executable == "" {
+			executable, err = gstreamer.ResolveExecutable(cfg.Root, "")
+			if err != nil {
+				// The media arguments are still useful before installation. This
+				// placeholder is not a successful executable selection; an actual
+				// run still requires ResolveExecutable to succeed.
+				executable = "gst-launch-1.0"
+				fmt.Fprintf(errorOutput, "Dry run: executable not resolved (%v). The first argument below is a placeholder; a real run currently cannot start.\n", err)
+			}
+		}
+		return printJSON(output, append([]string{executable}, argv...), errorOutput)
 	}
-	executable, err := exec.LookPath(cfg.GSTLaunch)
+	executable, err := gstreamer.ResolveExecutable(cfg.Root, cfg.GSTLaunch)
 	if err != nil {
-		fmt.Fprintln(errorOutput, "gst-launch-1.0 was not found; install GStreamer or pass --gst-launch")
+		fmt.Fprintln(errorOutput, err)
 		return 1
 	}
 	directory, err := privateReportDir(cfg.Root)
@@ -183,15 +152,16 @@ func run(ctx context.Context, args []string, output, errorOutput io.Writer) int 
 		fmt.Fprintln(errorOutput, "cannot create private log:", err)
 		return 1
 	}
-	log := &limitedLog{writer: logFile, limit: 1 << 20}
+	log := gstreamer.NewLimitedLog(logFile, 1<<20)
 	fmt.Fprintf(output, "Opening the %s picture for up to %.0f seconds. Private report: %s\n", cfg.Route, cfg.Duration.Seconds(), directory)
 	cmd := exec.Command(executable, argv...)
 	cmd.Dir = cfg.Root
-	result := runProcess(ctx, cmd, cfg.Duration, 2*time.Second, log)
+	result := gstreamer.RunProcess(ctx, cmd, cfg.Duration, 2*time.Second, log)
 	syncErr := logFile.Sync()
 	closeErr := logFile.Close()
+	kept, dropped, logErr := log.Snapshot()
 	r := report{Version: 1, Config: cfg, RequestedSeconds: cfg.Duration.Seconds(), Argv: append([]string{executable}, argv...), Process: result,
-		LogBytesKept: log.kept, LogBytesDropped: log.dropped,
+		LogBytesKept: kept, LogBytesDropped: dropped,
 		Notes: []string{
 			"Process lifetime is not an end-to-end video delay measurement or proof that pictures were displayed.",
 			"The requested receiver waiting time is not the total picture delay. TCP can also wait for missing data.",
@@ -202,7 +172,7 @@ func run(ctx context.Context, args []string, output, errorOutput io.Writer) int 
 	if err == nil {
 		err = os.WriteFile(filepath.Join(directory, "report.json"), append(data, '\n'), 0600)
 	}
-	if err != nil || syncErr != nil || closeErr != nil || log.err != nil {
+	if err != nil || syncErr != nil || closeErr != nil || logErr != nil {
 		fmt.Fprintln(errorOutput, "the private report or log could not be fully written")
 		return 1
 	}

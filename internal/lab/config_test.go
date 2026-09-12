@@ -331,8 +331,10 @@ func TestSourceSetupRendersCurrentSettings(t *testing.T) {
 		fmt.Sprintf("Port: %d\n", Field.SRT),
 		"Stream ID: publish:" + source.ID + ":" + source.PublisherUser + ":" + source.PublisherPassword + "\n",
 		"Encryption passphrase: " + settings.PublishPassphrase + "\n",
-		fmt.Sprintf("Nearby viewer: http://127.0.0.1:%d/%s\n", Field.Web, source.ID),
-		fmt.Sprintf("Simulated remote viewer: http://127.0.0.1:%d/%s\n", Central.Web, source.ID),
+		"Local picture: ./lab --source " + source.ID + " view local\n",
+		"Forwarded picture: ./lab --source " + source.ID + " view forwarded\n",
+		fmt.Sprintf("Local: http://127.0.0.1:%d/%s\n", Field.Web, source.ID),
+		fmt.Sprintf("Forwarded: http://127.0.0.1:%d/%s\n", Central.Web, source.ID),
 	} {
 		if !strings.Contains(guide, expected) {
 			t.Error("a connection field did not match the supplied settings")

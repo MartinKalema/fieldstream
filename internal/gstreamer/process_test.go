@@ -1,4 +1,4 @@
-package main
+package gstreamer
 
 import (
 	"bytes"
@@ -55,9 +55,21 @@ func TestProcessEarlyExitIsNotACompletedObservation(t *testing.T) {
 		mode string
 		code int
 	}{{"exit-zero", 0}, {"exit-error", 7}} {
-		result := runProcess(context.Background(), helperCommand(tc.mode), 5*time.Second, 100*time.Millisecond, io.Discard)
+		result := RunProcess(context.Background(), helperCommand(tc.mode), 5*time.Second, 100*time.Millisecond, io.Discard)
 		if result.Result != "exited_early" || result.ExitCode == nil || *result.ExitCode != tc.code || result.ForcedStop {
 			t.Fatalf("unexpected early-exit result: %+v", result)
+		}
+	}
+}
+
+func TestProcessWithNoDurationReportsOrdinaryExit(t *testing.T) {
+	for _, tc := range []struct {
+		mode string
+		code int
+	}{{"exit-zero", 0}, {"exit-error", 7}} {
+		result := RunProcess(context.Background(), helperCommand(tc.mode), 0, 100*time.Millisecond, io.Discard)
+		if result.Result != "exited" || result.ExitCode == nil || *result.ExitCode != tc.code || result.ForcedStop {
+			t.Fatalf("unexpected ordinary exit: %+v", result)
 		}
 	}
 }
@@ -97,7 +109,7 @@ func TestProcessDurationAllowsGracefulStopAndBoundsUnresponsiveChild(t *testing.
 	for _, mode := range []string{"graceful", "ignore"} {
 		var output bytes.Buffer
 		started := time.Now()
-		result := runProcess(context.Background(), helperCommand(mode), 500*time.Millisecond, 100*time.Millisecond, &output)
+		result := RunProcess(context.Background(), helperCommand(mode), 500*time.Millisecond, 100*time.Millisecond, &output)
 		if result.Result != "duration_elapsed" || result.ForcedStop != (mode == "ignore") || !strings.Contains(output.String(), "ready") {
 			t.Fatalf("unexpected %s result: %+v output=%q", mode, result, output.String())
 		}
@@ -118,12 +130,19 @@ func (w *readyWriter) Write(p []byte) (int, error) {
 }
 
 func TestProcessExternalCancellationRemainsDistinct(t *testing.T) {
+	for _, duration := range []time.Duration{0, 10 * time.Second} {
+		t.Run(duration.String(), func(t *testing.T) { testProcessCancellation(t, duration) })
+	}
+}
+
+func testProcessCancellation(t *testing.T, duration time.Duration) {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	writer := &readyWriter{ready: make(chan struct{})}
-	done := make(chan processResult, 1)
+	done := make(chan Result, 1)
 	go func() {
-		done <- runProcess(ctx, helperCommand("graceful"), 10*time.Second, 100*time.Millisecond, writer)
+		done <- RunProcess(ctx, helperCommand("graceful"), duration, 100*time.Millisecond, writer)
 	}()
 	select {
 	case <-writer.ready:
@@ -141,15 +160,47 @@ func TestProcessExternalCancellationRemainsDistinct(t *testing.T) {
 	}
 }
 
+func TestLogCapStillDrainsProcessOutput(t *testing.T) {
+	var buffer bytes.Buffer
+	log := NewLimitedLog(&buffer, 10)
+	for _, input := range []string{"123456", "789abc", "defghi"} {
+		n, err := log.Write([]byte(input))
+		if n != len(input) || err != nil {
+			t.Fatalf("did not drain input: %d %v", n, err)
+		}
+	}
+	kept, dropped, err := log.Snapshot()
+	if buffer.String() != "123456789a" || kept != 10 || dropped != 8 || err != nil {
+		t.Fatalf("incorrect cap: %q kept=%d dropped=%d err=%v", buffer.String(), kept, dropped, err)
+	}
+}
+
+type brokenWriter struct{}
+
+func (brokenWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
+
+func TestLogSnapshotReportsWriteFailureWhileDraining(t *testing.T) {
+	log := NewLimitedLog(brokenWriter{}, 10)
+	for range 2 {
+		if n, err := log.Write([]byte("123456")); n != 6 || err != nil {
+			t.Fatalf("stopped draining after log write failure: %d %v", n, err)
+		}
+	}
+	kept, dropped, err := log.Snapshot()
+	if kept != 0 || dropped != 12 || !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("incorrect failure snapshot: %d %d %v", kept, dropped, err)
+	}
+}
+
 func TestProcessCanceledBeforeStartAndMissingExecutable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	cmd := helperCommand("ignore")
-	result := runProcess(ctx, cmd, time.Second, time.Millisecond, io.Discard)
+	result := RunProcess(ctx, cmd, time.Second, time.Millisecond, io.Discard)
 	if result.Result != "canceled" || cmd.Process != nil {
 		t.Fatal("started a canceled operation")
 	}
-	result = runProcess(context.Background(), exec.Command("/no-such-fieldstream-executable"), time.Second, time.Millisecond, io.Discard)
+	result = RunProcess(context.Background(), exec.Command("/no-such-fieldstream-executable"), time.Second, time.Millisecond, io.Discard)
 	if result.Result != "start_failed" || result.ExitCode != nil || result.ProcessError == "" {
 		t.Fatalf("unexpected launch failure: %+v", result)
 	}

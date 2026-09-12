@@ -1,11 +1,11 @@
-# Compare a GStreamer viewer with the browser
+# GStreamer live viewer and comparison tool
 
-GStreamer is a toolkit for receiving, processing and displaying video. This
-experiment opens the existing camera picture in a separate desktop window. It
-tests whether a different way of receiving and displaying the picture can reduce
-delay. A working window alone does not establish that it is faster.
+GStreamer is a toolkit for receiving, processing and displaying video. It is now
+the normal live viewer for this lab. It opens the existing camera picture in a
+separate desktop window. The browser remains available for comparison and
+measurement. A working window alone does not establish that it is faster.
 
-The Go command starts and stops the experiment. GStreamer handles the video.
+The Go command starts and stops the viewer. GStreamer handles the video.
 Each run reads an existing source and leaves camera, forwarding, recording and
 upload settings unchanged.
 
@@ -25,13 +25,61 @@ later experiment requiring another machine.
 ## Open a viewer
 
 Run these commands from the project folder while the lab and camera are running.
-With `gst-launch-1.0` already installed and available in your shell:
+
+```sh
+./lab build
+./lab view
+```
+
+The normal viewer selects the first registered source, its local picture,
+software decoding and a **50 ms** receiver wait. It has no two-minute limit.
+Close its video window or press Ctrl+C in its terminal to stop only the viewer.
+The receiving, forwarding, recording and upload services keep running.
+
+```sh
+./lab --source camera-02 view local
+./lab --source camera-01 view forwarded
+./lab --source camera-01 view local --latency-ms 100
+./lab view --dry-run
+```
+
+Place `--source` before `view`; its other options follow `view`. The desktop
+**Start Video Lab.command** launcher starts the services and opens the first
+configured source. `./lab start` alone starts services without opening a window.
+When the receiving service is running but the camera is absent, the command
+waits up to a minute before opening GStreamer; Ctrl+C cancels that wait. It
+reports a stopped or unavailable receiving service promptly. If the camera
+does not arrive in time, start it and reopen the viewer. A connection failure
+after playback starts can also end the viewer. Automatic reconnection is not
+implemented here.
+
+Both viewer commands first use an explicit `--gst-launch` path when supplied,
+otherwise this project's `.tools/gstreamer-1.28.7/gst-launch-1.0`, then an
+installation found in the shell's PATH. A broken private selection fails
+clearly instead of silently choosing a different runtime. On a fresh Mac,
+run `scripts/install-gstreamer-runtime.sh` once to install the private runtime.
+No installation happens when opening a viewer.
+
+Each command opens one window. The current window title is "OpenGL renderer";
+the terminal identifies its source and route. This viewer does not yet have the
+browser page's picture-progress warnings or automatic clock measurement.
+
+It also does not provide user login or role-based access control (RBAC).
+Current playback trusts programs on this Mac. The future interface must check
+which user may watch or control each camera, and the server must enforce those
+permissions on actual video and control requests. See the
+[viewer and interface decision](decisions/003-gstreamer-live-viewer.md).
+
+## Run a timed comparison
+
+The separate diagnostic keeps the **100 ms reference setting** from the earlier
+comparisons. Add `--latency-ms 50` to test the normal viewer's current setting:
 
 ```sh
 go run ./cmd/gstreamer_check --root . --source camera-01 --duration 120s
 ```
 
-This workspace also has a private GStreamer 1.28.7 runtime. Use its wrapper:
+To select an explicit runtime wrapper:
 
 ```sh
 go run ./cmd/gstreamer_check --root . --source camera-01 --duration 120s \
@@ -50,7 +98,7 @@ Useful options:
 
 | Option | Meaning |
 | --- | --- |
-| `--latency-ms 100` | Request 100 milliseconds of receiver waiting; this is the default |
+| `--latency-ms 100` | Request 100 milliseconds of receiver waiting; default for the diagnostic, while normal `view` defaults to 50 |
 | `--decoder software` | Decode using the computer's processor; this is the default |
 | `--decoder hardware` | Request Apple's hardware video decoder |
 | `--sink headless` | Decode and discard pictures without opening a window |
@@ -59,7 +107,7 @@ Useful options:
 The allowed receiver waiting values are 0–200 milliseconds. Start with the
 default. Change one setting at a time so a later result has a clear comparison.
 
-## What the experiment changes
+## How the viewer works
 
 The route through the Mac is:
 
@@ -75,7 +123,8 @@ The command accepts a registered source name, not an arbitrary video address.
 It does not need the camera's publishing password.
 
 GStreamer's `rtspsrc` component normally allows **2,000 milliseconds** of waiting.
-Our launcher explicitly requests **100 milliseconds** and enables
+Normal viewing explicitly requests **50 milliseconds** (the diagnostic defaults
+to **100 milliseconds**) and enables
 `drop-on-latency`, which limits that component's packet buffer. Neither setting
 limits the entire picture's age. TCP, the decoder and the display can still
 introduce waiting. [GStreamer RTSP source controls](https://gstreamer.freedesktop.org/documentation/rtsp/rtspsrc.html)
@@ -83,7 +132,9 @@ introduce waiting. [GStreamer RTSP source controls](https://gstreamer.freedeskto
 The first physical-camera trial used 20 milliseconds and produced broken blocks
 during movement. Repeating the movement with only this setting changed to
 100 milliseconds removed the visible problem according to the observer. The
-default was raised accordingly. A small buffer can throw away video data that
+diagnostic default was raised accordingly. A later 50 ms trial stayed clear
+according to the observer, so normal viewing now starts at 50 ms with 100 ms
+available if damage returns. A small buffer can throw away video data that
 arrives in bursts even though the two receiving programs share a computer. This
 is a likely explanation for the observation, not a measured packet-drop result;
 the initial logs did not include detailed packet-eviction tracing.
@@ -155,9 +206,10 @@ measurements taken before display cannot establish camera-to-screen delay.
 
 ## What the saved report proves
 
-Each real run saves a private directory under `reports/gstreamer-check-*`.
-It contains the selected options, exact arguments, process start and stop
-information, and a log. The report and log files have private permissions and
+Each diagnostic run saves a private directory under `reports/gstreamer-check-*`;
+normal viewing uses `reports/live-view-*`.
+Both record the selected options, process start and stop information, and a log.
+The diagnostic also saves its exact program arguments. The report and log files have private permissions and
 are ignored by Git.
 
 The log keeps at most 1 MiB. Additional output is counted and discarded while
@@ -241,7 +293,7 @@ enabled diagnostic logging. The initial log was not detailed enough to measure
 packet evictions. A sampled camera receiver check showed no SRT loss or drops
 and no input frame errors, but that snapshot cannot exclude an earlier event.
 
-The 100 ms setting is now the starting point for this optional viewer. The
+The 100 ms setting remains the reference for the timed diagnostic. The
 one-picture decoded queue and camera settings are unchanged. This short trial
 does not establish long-term image reliability.
 Private evidence is saved in `reports/gstreamer-motion-quality-20260913.json`.
@@ -271,8 +323,18 @@ picture. These players present video independently; the difference does not
 mean that forwarding took negative time. GStreamer and the browser also use
 different receiving methods, so the result does not isolate decoding alone.
 
-The next controlled comparison is the Mac's hardware decoder with the same
-100 ms wait and camera settings, checking repeated delay readings and movement
-quality. The software setting remains the default until that comparison is
-complete. Private readings and screenshot references are in
+The Mac's hardware decoder remains a possible controlled comparison with the
+same wait and camera settings, checking repeated delay readings and movement
+quality. The software setting remains the default. Private readings and screenshot references are in
 `reports/gstreamer-clock-comparison-20260913.json`.
+
+### Follow-up at 50 ms
+
+The observer then tried a 120-second diagnostic with the same local route and
+software decoder, changing the receiver wait to 50 ms. During the movement test,
+they reported "no blocks now". That run ended at its time limit with exit code 0.
+Its private process report is `reports/gstreamer-check-1993220736/report.json`.
+Normal viewing now starts at 50 ms; use 100 ms if the broken picture returns.
+The clock has not yet measured the 50 ms trial, so reducing this setting does
+not prove a 50 ms reduction in total picture delay. Longer runs and difficult
+connections still need testing.
