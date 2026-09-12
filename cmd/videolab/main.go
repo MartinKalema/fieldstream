@@ -128,11 +128,13 @@ func run() error {
 	p := lab.NewPaths(absolute)
 	args := flags.Args()
 	if len(args) == 0 {
-		fmt.Println("Commands: setup, source list|add|guide, start, status, stop, demo, demo-stop, relay-off, relay-on, relay-link local|srt, relay-wait 120|300, profile copy|small, archive-config, test, logs")
+		fmt.Println("Commands: setup, source list|add|guide, start, status, stop, demo, demo-stop, relay-off, relay-on, relay-link local|srt, relay-wait 120|300, profile copy|small, recordings check|health, archive-config, test, logs")
 		fmt.Println("Choose a source: ./lab --source camera-02 profile small")
 		return nil
 	}
 	switch args[0] {
+	case "recordings":
+		return recordingsCommand(p, *selected, args[1:], os.Stdout)
 	case "setup":
 		setupFlags := flag.NewFlagSet("setup", flag.ContinueOnError)
 		host := setupFlags.String("host", "", "Mac's local network IPv4 address")
