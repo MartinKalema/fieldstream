@@ -50,7 +50,7 @@ Useful options:
 
 | Option | Meaning |
 | --- | --- |
-| `--latency-ms 20` | Request 20 milliseconds of receiver waiting; this is the default |
+| `--latency-ms 100` | Request 100 milliseconds of receiver waiting; this is the default |
 | `--decoder software` | Decode using the computer's processor; this is the default |
 | `--decoder hardware` | Request Apple's hardware video decoder |
 | `--sink headless` | Decode and discard pictures without opening a window |
@@ -75,10 +75,18 @@ The command accepts a registered source name, not an arbitrary video address.
 It does not need the camera's publishing password.
 
 GStreamer's `rtspsrc` component normally allows **2,000 milliseconds** of waiting.
-Our launcher explicitly requests **20 milliseconds** and enables
+Our launcher explicitly requests **100 milliseconds** and enables
 `drop-on-latency`, which limits that component's packet buffer. Neither setting
 limits the entire picture's age. TCP, the decoder and the display can still
 introduce waiting. [GStreamer RTSP source controls](https://gstreamer.freedesktop.org/documentation/rtsp/rtspsrc.html)
+
+The first physical-camera trial used 20 milliseconds and produced broken blocks
+during movement. Repeating the movement with only this setting changed to
+100 milliseconds removed the visible problem according to the observer. The
+default was raised accordingly. A small buffer can throw away video data that
+arrives in bursts even though the two receiving programs share a computer. This
+is a likely explanation for the observation, not a measured packet-drop result;
+the initial logs did not include detailed packet-eviction tracing.
 
 **Decoding the pictures.** The software setting uses `avdec_h264` with one worker
 thread. This provides an explicit starting point instead of letting the decoder
@@ -213,6 +221,28 @@ development Mac:
 
 These generated tests establish basic installation and component compatibility.
 They do not establish physical camera-to-screen delay. The external camera was
-offline when the live comparison was attempted, so the physical
-browser-versus-desktop comparison remains pending. No speed improvement is
-claimed yet.
+initially offline when the live comparison was attempted.
+
+### Physical camera trial on 13 September 2026
+
+The external iPad resumed broadcasting 1280 × 720 H.264 video. The observer
+confirmed the GStreamer desktop window displayed it while both browser players
+also advanced. The existing camera allowance remained 80 ms and the forwarding
+profile remained `copy`.
+
+| Viewer setting | Observation |
+| --- | --- |
+| 20 ms, software decoder | The observer reported broken blocks and smears during movement in GStreamer only, and supplied a screenshot. The two-minute process still exited normally. |
+| 100 ms, same decoder and other pipeline settings | The observer repeated the movement and reported that the broken blocks were gone. The two-minute process exited normally. |
+
+These were sequential observations, not identical replayed movement. The only
+viewer media setting changed was its receiver allowance; the second run also
+enabled diagnostic logging. The initial log was not detailed enough to measure
+packet evictions. A sampled camera receiver check showed no SRT loss or drops
+and no input frame errors, but that snapshot cannot exclude an earlier event.
+
+The 100 ms setting is now the starting point for this optional viewer. The
+one-picture decoded queue and camera settings are unchanged. This short trial
+does not establish long-term image reliability. A simultaneous filmed-clock
+comparison with the browser is still needed: no speed improvement is claimed.
+Private evidence is saved in `reports/gstreamer-motion-quality-20260913.json`.

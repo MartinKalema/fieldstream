@@ -42,7 +42,7 @@ func parseOptions(args []string, output io.Writer) (options, error) {
 	flags.StringVar(&cfg.Source, "source", "camera-01", "registered source ID")
 	flags.StringVar(&cfg.Route, "route", "local", "local or forwarded picture")
 	flags.DurationVar(&cfg.Duration, "duration", 30*time.Second, "viewer duration, from 5s to 120s")
-	flags.IntVar(&cfg.LatencyMS, "latency-ms", 20, "requested receiver waiting time, from 0 to 200 milliseconds")
+	flags.IntVar(&cfg.LatencyMS, "latency-ms", 100, "requested receiver waiting time, from 0 to 200 milliseconds; lower settings may produce broken pictures")
 	flags.StringVar(&cfg.Decoder, "decoder", "software", "software (avdec_h264) or hardware (vtdec_hw)")
 	flags.StringVar(&cfg.Sink, "sink", "gl", "gl (native window) or headless (no picture displayed)")
 	flags.StringVar(&cfg.GSTLaunch, "gst-launch", "gst-launch-1.0", "installed gst-launch-1.0 executable")

@@ -27,7 +27,7 @@ func TestOptionsBoundResourcesAndRejectURLs(t *testing.T) {
 		}
 	}
 	cfg, err := parseOptions(nil, io.Discard)
-	if err != nil || cfg.Duration != 30*time.Second || cfg.LatencyMS != 20 || cfg.Route != "local" || cfg.Decoder != "software" || cfg.Sink != "gl" {
+	if err != nil || cfg.Duration != 30*time.Second || cfg.LatencyMS != 100 || cfg.Route != "local" || cfg.Decoder != "software" || cfg.Sink != "gl" {
 		t.Fatalf("unexpected defaults: %+v, %v", cfg, err)
 	}
 }
@@ -39,7 +39,7 @@ func TestPipelineFixedSourceAndDecodedPictureQueue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"location=rtsp://127.0.0.1:18554/camera-01", "protocols=tcp", "latency=20", "tcp-timeout=5000000", "drop-on-latency=true", "max-threads=1", "sync=false"} {
+	for _, want := range []string{"location=rtsp://127.0.0.1:18554/camera-01", "protocols=tcp", "latency=100", "tcp-timeout=5000000", "drop-on-latency=true", "max-threads=1", "sync=false"} {
 		if !slices.Contains(args, want) {
 			t.Fatalf("missing %q", want)
 		}
@@ -55,6 +55,16 @@ func TestPipelineFixedSourceAndDecodedPictureQueue(t *testing.T) {
 	joined := strings.Join(args, " ")
 	if strings.Contains(joined, "secret") || strings.Contains(joined, "tcp-timestamp") || strings.Contains(joined, "autovideosink") {
 		t.Fatal("unexpected credential, timestamp override or automatic sink")
+	}
+	explicit, err := parseOptions([]string{"--latency-ms", "20"}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	explicitArgs, err := pipeline(explicit, sources)
+	wantExplicit := slices.Clone(args)
+	wantExplicit[slices.Index(wantExplicit, "latency=100")] = "latency=20"
+	if err != nil || !slices.Equal(explicitArgs, wantExplicit) {
+		t.Fatalf("explicit 20 ms should change only the waiting time: %q %v", explicitArgs, err)
 	}
 	cfg.Route, cfg.Decoder, cfg.Sink = "forwarded", "hardware", "headless"
 	args, err = pipeline(cfg, sources)
