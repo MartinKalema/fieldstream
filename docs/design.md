@@ -2,6 +2,8 @@
 
 **Design status, 11 September 2026:** Go control, up to four registered sources, SQLite and optional R2 uploads are implemented. Acceptance with two simultaneous generated sources passed all 50 checks, including full decoding of 26 finalized clips after orderly shutdown. Consult the README and test reports for verified behaviour. The [researched constraints and language decision](constraints-and-language-choice.md) supplies target requirements for later stages too.
 
+**Viewer update, 13 September 2026:** GStreamer now supplies live playback. The browser live players and their measurement code have been removed; a simple web clock remains as a filming target. User login and server-enforced camera permissions are the next interface requirement. [Viewer decision](decisions/003-gstreamer-live-viewer.md).
+
 The first goal is to receive video from several devices, watch and record each source separately, and stop one source's forwarding without stopping its local picture or other sources. A phone, tablet, compatible camera or another computer can be a sender. The first input requires H.264 in MPEG-TS over SRT; additional input types need adapters.
 
 This version runs directly on your Mac, without Docker or a Linux virtual machine. Two separate video-server programs represent the nearby computer and the future remote computer. They share one physical machine, disk, power supply, and network connection.
@@ -14,7 +16,7 @@ Source camera-01       Source camera-02
     v
 Nearby video service (MediaMTX, on the Mac)
     |
-    +--> A local browser picture for each source
+    +--> A local GStreamer picture for each selected source
     |
     +--> A recording program per source (FFmpeg) --> separate recording files
     |
@@ -24,12 +26,12 @@ Nearby video service (MediaMTX, on the Mac)
          Second video service (MediaMTX, also on the Mac)
               |
               v
-         A forwarded browser picture for each source
+         A forwarded GStreamer picture for each selected source
 ```
 
 ## Each part has one clear job
 
-**Each sender captures and compresses its picture.** Compression reduces how much data it sends. H.264 is our initial compression format because the selected receiving and browser tools support it. SRT carries the video to the receiving computer, can ask for missing data again within a limited time, and encrypts the media when a passphrase is configured. Larix on a phone or tablet is one sender; a compatible camera or computer can use the same input. [Larix capabilities](https://softvelum.com/larix/ios/), [MediaMTX SRT support](https://mediamtx.org/docs/publish/srt-clients).
+**Each sender captures and compresses its picture.** Compression reduces how much data it sends. H.264 is our initial compression format because the selected receiving and viewing tools support it. SRT carries the video to the receiving computer, can ask for missing data again within a limited time, and encrypts the media when a passphrase is configured. Larix on a phone or tablet is one sender; a compatible camera or computer can use the same input. [Larix capabilities](https://softvelum.com/larix/ios/), [MediaMTX SRT support](https://mediamtx.org/docs/publish/srt-clients).
 
 **The source registry separates device identity from device type.** A source has a stable ID such as `camera-02`, a readable label, and its own publishing credentials. Setup starts with `camera-01`; `source add` registers another device while the lab is stopped. It writes `.local/connections/<id>.txt` and adds an entry to the secret-free `SOURCES.txt` index. The same source ID identifies its viewer paths, controls and recordings. Replacing a phone with a different compatible sender does not require a new architecture.
 
@@ -45,9 +47,9 @@ An observed source-disconnect test left an incomplete compressed frame in the fi
 
 Both MediaMTX processes are shared across sources. Failure of the nearby service affects every source using it; failure of the second service affects every forwarded viewer. Per-source recorder and forwarder processes limit some failures, while shared services and hardware remain common failure points.
 
-**The browser lets us inspect the result.** WebRTC is the browser technology used here to receive live media with a short delay. The two local pages show the source and forwarded picture. Their connection state is not proof of the actual age of the image.
+**GStreamer receives and displays the picture.** It requests a registered source from either local video service over RTSP/TCP. A small receiver wait and a one-picture queue after decoding limit waiting in those parts of the viewer. They do not bound the whole camera-to-screen delay. The separate white clock target lets us check approximate delay by filming it and comparing its number with the one in the native window. [Viewer operation and measured limits](gstreamer-viewer.md).
 
-The generated 720p `camera-01` stream displayed in both local and forwarded browser players; [the browser report](../reports/browser-check.json) records that check. It does not prove two-source browser capacity or compatibility with a physical camera.
+**The planned interface will manage people and permissions.** A Go service must check which cameras and actions each person may access, including the actual media request. A login page alone cannot protect the current direct local read connections. User roles, permission removal and native picture-progress warnings remain to be built and tested. Today's local commands trust access to the Mac.
 
 **The Go control program starts, watches and stops the other programs.** It manages two shared MediaMTX services and each source's recorder, forwarder and optional generated test pattern. A failed status query is treated as unknown, so it does not deliberately stop otherwise working media. Existing workers can keep draining output if a log destination fails. These rules still need failure testing; they do not make every stalled disk operation harmless. An executable is the built program that the computer runs. Building it requires Go tools; running it does not. Video passes through FFmpeg and MediaMTX, so Go does not improve picture quality or encoding speed.
 
@@ -77,7 +79,7 @@ The second distinction is between a **running process** and a **working service*
 
 ## The security boundary in this version
 
-Source input is available on this computer's local network at one configured SRT port. The Stream ID selects the source path. Each source has a generated username, password and encryption passphrase; its publishing identity is restricted to its own path. Read access, browser pages, the second service and management interfaces are limited to this computer.
+Source input is available on this computer's local network at one configured SRT port. The Stream ID selects the source path. Each source has a generated username, password and encryption passphrase; its publishing identity is restricted to its own path. Read access, the clock target, the second service and management interfaces are limited to this computer. The old browser video listeners are disabled.
 
 Treat `.local/connections/` and generated configuration as private. The username/password authorizes publishing; the passphrase encrypts media. SRT encryption does not promise that all connection metadata is hidden. WireGuard, a tool that creates an encrypted connection between computers, is future work before using this design across untrusted networks. It is not installed or enabled by this lab.
 
@@ -97,7 +99,7 @@ Two-source generated-video acceptance passed: [the report](../reports/latest-int
 
 ## What remains to build
 
-1. **Measured video age.** Track how old the displayed camera picture is, with a clear statement of clock error. This version does not measure the full time from camera capture to browser display.
+1. **Measured video age.** Track how old the displayed camera picture is, with a clear statement of clock error. Manual native clock readings are available; automatic measurement of camera-to-screen delay remains to be built.
 2. **Real network impairment.** Add Linux and `netem`, a tool for deliberately delaying or losing network data. Stopping a forwarding process is a different test.
 3. **Separate computers and connections.** Move the receiving and remote services apart. Add a truly separate backup internet connection and measure switching. There is no actual internet-path redundancy today.
 4. **Recording durability and archive recovery.** Extend the successful real-bucket upload check with interrupted transfers. Test full-disk and physical power-loss behaviour on suitable separate equipment.

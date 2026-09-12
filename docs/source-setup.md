@@ -94,7 +94,7 @@ Use these settings for the first test:
 | Video bitrate | 2,000 kbps, or 2 Mbps | The target amount of video data sent each second |
 | Container, if requested | MPEG-TS | Carries the compressed video over this connection |
 | Keyframe interval, if available | 2 seconds | How often an independently decodable picture is sent |
-| B-frames, if available | Off | Avoids a picture-ordering mode that can prevent this browser path from working |
+| B-frames, if available | Off | Keeps pictures in a simple order for the low-delay starting setup |
 | Audio | Video only | Keeps the first experiment focused on the picture |
 | Automatic bitrate changes | Off initially | Makes the first comparison easier to understand |
 
@@ -104,14 +104,18 @@ Return to the camera view and press Larix's start-streaming button. Point it at 
 
 ## Watch on the Mac
 
-Open these links in a browser **on the Mac**:
+Run a GStreamer viewer **on the Mac**:
 
-- [Local picture](http://127.0.0.1:18889/camera-01) — directly from the first video service.
-- [Forwarded picture](http://127.0.0.1:28889/camera-01) — after the separate forwarding program.
+```sh
+./lab --source camera-01 view local
+./lab --source camera-01 view forwarded
+```
 
-Use `/camera-02` for the second source, or run `./lab source list` for every address. `127.0.0.1` means the computer running the browser. Opening these links on another device will not reach the receiving computer.
-
-If the player asks you to press Play, do so. Allow a few seconds for the connection and picture to start.
+Each command opens one window; use separate terminals to compare both routes.
+Replace `camera-01` with another registered source, or run `./lab source list`
+for every command. The receiving service must be running; the viewer waits up
+to a minute for the camera to begin sending. Close its window or press Ctrl+C
+to stop only that viewer. [Installation and viewing guide](gstreamer-viewer.md).
 
 Check the programs from Terminal:
 
@@ -141,7 +145,7 @@ Start forwarding again:
 ./lab --source camera-01 relay-on
 ```
 
-Check that the forwarded picture returns to what the camera sees now. If the browser does not reconnect, reload its page and record that as a recovery limitation.
+Check that the forwarded picture returns to what the camera sees now. Reopen the GStreamer viewer if its connection ended, and record that manual restart as a recovery limitation.
 
 This experiment stops a program. It does not yet reproduce internet packet loss or prove recovery from a real network failure.
 
@@ -159,7 +163,7 @@ Then select the smaller delivery profile:
 ./lab --source camera-02 profile small
 ```
 
-Compare readable text and movement in that source's two browser windows. Its local window shows what reached the receiving computer. Other sources keep their own settings. This is a visual check, not a measured quality score.
+Compare readable text and movement in that source's two GStreamer windows. Its local window shows what reached the receiving computer. Other sources keep their own settings. This is a visual check, not a measured quality score.
 
 The smaller profile changes the video **after it reaches the receiving computer**. It cannot reduce data already sent from the source. Change the sender's bitrate or resolution to reduce that first connection's traffic.
 
@@ -188,7 +192,7 @@ The number is milliseconds. This briefly reconnects the selected forwarder. It l
 
 The command accepts only 120 or 300. The chosen value is saved for the next lab start and is used when the SRT forwarding link is selected. Status shows the requested value; the actual allowance is agreed between the two connected programs. The lab's acceptance test checks that both values are agreed correctly with its selected receiver.
 
-Changing the camera's own allowance requires a separate change in its sender app. First compare forwarding on its own, then repeat the filmed-clock measurement after any camera-side change. A shorter queue reported by a server does not by itself prove how old the picture in the browser is. See [the network experiment](network-delay-test.md).
+Changing the camera's own allowance requires a separate change in its sender app. First compare forwarding on its own, then repeat the filmed-clock measurement after any camera-side change. A shorter queue reported by a server does not by itself prove how old the displayed picture is. See [the network experiment](network-delay-test.md).
 
 On the observed Larix version, open **Connections**, then **Manage** at the bottom-right, then the connection name to find **latency (msec)**. Stop and restart broadcasting after a change. The private 120 ms and 300 ms restore QR imports are another way to apply that setting. A successful import does not change a connection that was already running; verify the newly connected receiver afterward.
 
@@ -229,7 +233,7 @@ The separate private [80 ms experiment QR](../.local/connections/camera-01-larix
 | It stopped working after moving networks | Run `./lab stop`, then `./lab setup`, then `./lab start`; update each sender from its private guide |
 | An authentication or encryption error | The full Stream ID and passphrase match that source's generated guide |
 | macOS asks about incoming connections | Allow the lab's MediaMTX program on your trusted local network |
-| Sender connects, but no browser picture | Select H.264, turn off B-frames and audio, and check `./lab status` |
+| Sender connects, but no native picture | Select H.264, turn off B-frames and audio, check `./lab status`, then reopen `./lab view` |
 | Local picture works, forwarded picture does not | Run `./lab --source SOURCE_ID relay-on`; check status and reload that player |
 | A generated test pattern appears | Run `./lab --source SOURCE_ID demo-stop` before connecting that source's real device |
 | A second device cannot use the same source | Give it its own registered source and private guide |

@@ -1,14 +1,21 @@
-# Browser buffering and a shorter camera wait
+# Historical browser buffering and camera-wait results
+
+The browser players and buffer experiment described here have been removed.
+These are measurements from 12 September 2026, not current viewing instructions.
+For live viewing and new delay readings, use the
+[GStreamer viewer and standalone clock](gstreamer-viewer.md#make-a-fair-comparison).
+The complete [former browser method at commit 40dfbc8](https://github.com/MartinKalema/fieldstream/blob/40dfbc8/cmd/browser_check/README.md)
+remains available as historical source.
 
 The working camera connection used a 120 ms recovery allowance, with direct local forwarding and no extra video compression. A fresh stock-player screenshot read 48.80 seconds now and 48.42 seconds in each picture: about 0.38 seconds of total delay.
 
 ## Browser test
 
-The separate comparison page at `http://127.0.0.1:19081/` opens two readers of the same selected source. One uses the browser default; the other asks for `jitterBufferTarget = 0`. This setting is a request to reduce the time the browser holds video before decoding or display. It is not a promise of zero delay.
+The former comparison page opened two readers of the same selected source. One used the browser default; the other requested `jitterBufferTarget = 0`. This setting asked to reduce the time the browser held video before decoding or display. It was not a promise of zero delay.
 
-Unlike the earlier read-only DOM inspection, JavaScript inside the page confirmed support for both this control and `requestVideoFrameCallback`. The initial support conclusion was therefore corrected. The diagnostic uses the pinned MediaMTX reader and a same-origin proxy restricted to named sources on the existing loopback receivers. It does not open the viewers or management API to the network.
+Unlike the earlier read-only DOM inspection, JavaScript inside the page confirmed support for both this control and `requestVideoFrameCallback`. The initial support conclusion was therefore corrected. The diagnostic used the pinned MediaMTX reader and a same-origin proxy restricted to named sources on the loopback receivers. That proxy has also been removed.
 
-After 10 seconds of continuous playback, the page measures about 30 seconds. It subtracts successive cumulative counters and weights buffer time by the number of emitted frames. Stopped frames, missing counters, receiver changes or an interrupted measurement make the comparison unusable. An accepted zero value is reported separately from the actual measured wait.
+After 10 seconds of continuous playback, the page measured about 30 seconds. It subtracted successive cumulative counters and weighted buffer time by the number of emitted frames. Stopped frames, missing counters, receiver changes or an interrupted measurement made the comparison unusable. An accepted zero setting was reported separately from actual measured waiting.
 
 Two usable observations gave:
 
@@ -17,7 +24,7 @@ Two usable observations gave:
 | First observation | 59.30 ms | 59.53 ms | 900 | 0 / 0 |
 | Completed repeat | 72.01 ms | 71.34 ms | 901 | 0 / 0 |
 
-The second run measured approximately 97 ms from the last packet's arrival to expected display, including about 1.6–1.8 ms of decoding. This interval overlaps buffer time; the two must not be added. Capture timestamps were unavailable. Neither interval measures the entire journey from the camera sensor to the screen. The results show no useful improvement from the zero request, so normal browser buffering remains the selected behavior. [Measured aggregates](../reports/browser-buffer-initial-comparisons.json), [diagnostic instructions](../cmd/browser_check/README.md), [browser buffer definition](https://www.w3.org/TR/webrtc-stats/#dom-rtcinboundrtpstreamstats-jitterbufferdelay).
+The second run measured approximately 97 ms from the last packet's arrival to expected display, including about 1.6–1.8 ms of decoding. This interval overlaps buffer time; the two must not be added. Capture timestamps were unavailable. Neither interval measures the entire journey from the camera sensor to the screen. The results showed no useful improvement from the zero request, so the former browser viewer kept its normal buffering. [Measured aggregates](../reports/browser-buffer-initial-comparisons.json), [browser buffer definition](https://www.w3.org/TR/webrtc-stats/#dom-rtcinboundrtpstreamstats-jitterbufferdelay).
 
 ## Why lowering only the camera setting would not work
 
@@ -50,9 +57,9 @@ go run ./cmd/net_check \
 
 [All trials and method](../reports/network-delay-80ms-comparison.json). The normal 300 ms starting setting for unknown senders remains unchanged.
 
-## Active 80 ms experiment
+## Historical activation of the 80 ms camera experiment
 
-The experimental receiver is active for both services. After the sender restarted, the receiver confirmed **80 ms** on camera-01. Local forwarding still copies the original compressed video. All **85 media acceptance checks passed**, including full decoding of **44 finalized clips**, with no cleanup errors. [Acceptance report](../reports/integration-lan80-receiver.json).
+At this stage, the experimental receiver was active for both services. After the sender restarted, the receiver confirmed **80 ms** on camera-01. Local forwarding copied the original compressed video. All **85 media acceptance checks passed**, including full decoding of **44 finalized clips**, with no cleanup errors. [Acceptance report](../reports/integration-lan80-receiver.json).
 
 A 50.075-second check observed the same 80 ms connection throughout, with 9,157 additional received packets and no reported dropped or retransmitted packets. This short observation does not establish long-term reliability. [Connection check](../reports/camera80-stability-check.json).
 
@@ -63,7 +70,7 @@ Two further browser comparisons, with left and right positions swapped, found no
 | Zero on left | 49.83 ms | 49.81 ms | 902 / 902 | 0 / 0 |
 | Zero on right | 50.58 ms | 50.86 ms | 900 / 901 | 0 / 0 |
 
-Both measurements passed the page's validity checks. The one-frame count difference is consistent with independent sampling boundaries; it is not evidence of a lost frame. Normal browser buffering remains selected. Full reports and activation evidence are linked from [the activation report](../reports/camera80-activation.json).
+Both measurements passed the page's validity checks. The one-frame count difference is consistent with independent sampling boundaries; it is not evidence of a lost frame. The former viewer retained normal browser buffering. Full reports and activation evidence are linked from [the activation report](../reports/camera80-activation.json).
 
 ## Physical camera reading
 
@@ -71,4 +78,4 @@ The user's screenshot at 02:23:07 on 12 September 2026 shows 34.31 seconds on th
 
 This is one approximate reading, not a delay percentile or maximum. An attempted second reading showed a dark scene and was excluded. The 80 ms value is a network recovery allowance, not total camera-to-screen delay. [Physical evidence](../reports/physical-delay-check.json).
 
-For continuous local-versus-forwarded viewing, use `http://127.0.0.1:19080/`. The browser-buffer experiment is separate at `http://127.0.0.1:19081/`; it closes its two diagnostic readers after each run and can save its full measurement JSON privately under `reports/`. To restore the longer camera recovery allowance, import `.local/connections/camera-01-larix-120ms-qr.png` and restart sending, or set the current Larix connection's latency to 120 ms and restart.
+The current page at `http://127.0.0.1:19080/` is only a white clock target; it has no live players. Open the desired camera route with `./lab --source camera-01 view local` or `./lab --source camera-01 view forwarded`. To restore the longer camera recovery allowance, follow the [source setup guide](source-setup.md#restore-the-camera-to-120-ms). The camera's 80/120 ms allowance is separate from GStreamer's 50/100 ms viewer setting.

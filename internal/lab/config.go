@@ -51,10 +51,10 @@ func NewPaths(root string) Paths {
 		Recordings: filepath.Join(root, "recordings"), Reports: filepath.Join(root, "reports")}
 }
 
-type Ports struct{ SRT, RTSP, Web, ICE, API, Metrics int }
+type Ports struct{ SRT, RTSP, API, Metrics int }
 
-var Field = Ports{SRT: 18890, RTSP: 18554, Web: 18889, ICE: 18189, API: 19997, Metrics: 19998}
-var Central = Ports{SRT: 28890, RTSP: 28554, Web: 28889, ICE: 28189, API: 29997, Metrics: 29998}
+var Field = Ports{SRT: 18890, RTSP: 18554, API: 19997, Metrics: 19998}
+var Central = Ports{SRT: 28890, RTSP: 28554, API: 29997, Metrics: 29998}
 
 type Settings struct {
 	Host    string         `json:"host"`
@@ -420,7 +420,7 @@ func (p Paths) writeSourceConfiguration(settings Settings) error {
 		}
 		guidePath := filepath.Join(p.Local, "connections", source.ID+".txt")
 		guides[guidePath] = guide
-		fmt.Fprintf(&index, "%s (%s)\nConnection instructions: %s\nWatch locally: ./lab --source %s view local\nWatch forwarded: ./lab --source %s view forwarded\nBrowser checks: http://127.0.0.1:%d/%s and http://127.0.0.1:%d/%s\n\n", source.Label, source.ID, guidePath, source.ID, source.ID, Field.Web, source.ID, Central.Web, source.ID)
+		fmt.Fprintf(&index, "%s (%s)\nConnection instructions: %s\nWatch locally: ./lab --source %s view local\nWatch forwarded: ./lab --source %s view forwarded\n\n", source.Label, source.ID, guidePath, source.ID, source.ID)
 	}
 	for name, guide := range guides {
 		if err := privateWrite(name, []byte(guide)); err != nil {
@@ -737,10 +737,8 @@ func serverConfig(settings Settings, central bool) map[string]any {
 		"pprof": false, "playback": false,
 		"rtsp": true, "rtspAddress": local(ports.RTSP), "rtspTransports": []string{"tcp"}, "rtspEncryption": "no",
 		"rtmp": false, "hls": false, "moq": false,
-		"webrtc": true, "webrtcAddress": local(ports.Web), "webrtcAllowOrigins": []string{fmt.Sprintf("http://127.0.0.1:%d", ports.Web), fmt.Sprintf("http://localhost:%d", ports.Web)},
-		"webrtcLocalUDPAddress": local(ports.ICE), "webrtcLocalTCPAddress": "", "webrtcIPsFromInterfaces": false,
-		"webrtcIPsFromInterfacesList": []string{}, "webrtcAdditionalHosts": []string{"127.0.0.1"}, "webrtcICEServers2": []any{},
-		"srt": true, "srtAddress": fmt.Sprintf("%s:%d", host, ports.SRT),
+		"webrtc": false,
+		"srt":    true, "srtAddress": fmt.Sprintf("%s:%d", host, ports.SRT),
 		"pathDefaults": map[string]any{"record": false, "maxReaders": 12, "overridePublisher": false},
 		"paths":        paths,
 	}
@@ -754,7 +752,6 @@ func renderSourceSetup(settings Settings, source SourceConfig) (string, error) {
 		ID, Label                                        string
 		ConnectionURL, Host, StreamID, PublishPassphrase string
 		Port                                             int
-		NearbyViewerURL, RemoteViewerURL                 string
 	}{
 		ID:                source.ID,
 		Label:             source.Label,
@@ -763,8 +760,6 @@ func renderSourceSetup(settings Settings, source SourceConfig) (string, error) {
 		Port:              Field.SRT,
 		StreamID:          "publish:" + source.ID + ":" + source.PublisherUser + ":" + source.PublisherPassword,
 		PublishPassphrase: source.PublishPassphrase,
-		NearbyViewerURL:   fmt.Sprintf("http://127.0.0.1:%d/%s", Field.Web, source.ID),
-		RemoteViewerURL:   fmt.Sprintf("http://127.0.0.1:%d/%s", Central.Web, source.ID),
 	}
 	guide, err := template.New("source-setup").Option("missingkey=error").Parse(sourceSetupTemplate)
 	if err != nil {

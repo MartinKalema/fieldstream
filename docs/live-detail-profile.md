@@ -49,7 +49,7 @@ Settings are saved per source and survive controller restart. The existing
 | --- | --- |
 | Keep incoming pixel dimensions | Avoid discarding small detail through resizing. Compression can still make text harder to read. |
 | 20 fps | Process and send fewer pictures than a 30 fps source. Motion becomes less smooth. |
-| H.264, `veryfast` | Match the tested compression candidate and existing browser path. Faster encoding trades compression efficiency for CPU time. |
+| H.264, `veryfast` | Match the tested compression candidate and compatible viewing format. Faster encoding trades compression efficiency for CPU time. |
 | `zerolatency`, no B-frames | Avoid encoder features that hold pictures while waiting for future pictures. This is not a zero-delay guarantee. |
 | Fixed 20-frame keyframe interval | Send a complete refresh picture about once per second at 20 fps. Large refresh pictures still produce bursts. |
 | 1,200 kbps target and maximum, 600 kbit encoder buffer | Match the tested rate-control budget. The buffer is an encoder rate-control limit, not a promise of a fixed half-second playback delay. |
@@ -67,7 +67,7 @@ that every incoming resolution will fit this CPU or bitrate budget.
 
 ## Measure the live cost
 
-Keep the same camera settings, scene, lighting, connection and browser load for
+Keep the same camera settings, scene, lighting, connection and viewer load for
 each run. Let a profile switch settle before observing it. Compare `copy` and
 `detail` in separate windows, then repeat them in the opposite order when
 possible. Do not compile or run media acceptance tests during measurements.
@@ -80,7 +80,7 @@ go build -o .tools/bin/relay_check ./cmd/relay_check
 This reports the forwarder's CPU, average and maximum sampled memory, and the
 payload rate received at the forwarded video service. One fully occupied CPU
 core is 100%; two cores can be 200%. It excludes the camera, receiver, recorder,
-uploader and browser processes. Payload rate excludes some network overhead.
+uploader and viewer processes. Payload rate excludes some network overhead.
 The private JSON report is saved under ignored `reports/relay-check-*`.
 
 A process restart, missing observation, stale status, changed publisher or
@@ -90,15 +90,17 @@ join measurements across a reconnect. See [relay_check's measurement limits](../
 Use two separate observations alongside that command:
 
 1. Open the [filmed-clock page](developer-tools.md#filmed-clock-comparison) and
-   point the camera at its clock. Capture all three clocks together. Subtract
+   point the camera at its clock. Open local and forwarded GStreamer windows
+   beside the target and capture all three clocks together. Subtract
    the time inside each video from the large clock to estimate picture age.
    Take at least three readings per profile. Screen refresh, camera exposure
    and frame selection limit precision.
-2. Run the [browser check](../cmd/browser_check/README.md) on the forwarded route.
-   Both of its players read that route; they compare browser buffering choices,
-   not compression profiles. Compare each same browser mode across sequential
-   `copy` and `detail` runs. Keep the extra reader load constant. Report missing
-   counters as unavailable, never as zero freezes.
+2. Watch each native picture during still scenes and movement. Record visible
+   blocks and pauses, including when they happened. Keep viewer settings and
+   the number of open windows the same across `copy` and `detail` runs.
+   The removed browser tool's frame and freeze counters are not available in
+   this native viewer. Manual observations do not replace those counters;
+   quantitative native playback measurements remain to be implemented.
 
 For the first 720p local trial, the provisional targets are at least 19 decoded
 frames per second over each settled 30-second detail window, no reported

@@ -797,32 +797,46 @@ func checkPorts(s Settings) error {
 		ports Ports
 		host  string
 	}{{Field, s.Host}, {Central, "127.0.0.1"}} {
-		for _, port := range []int{item.ports.API, item.ports.Metrics, item.ports.Web, item.ports.RTSP} {
+		for _, port := range []int{item.ports.API, item.ports.Metrics, item.ports.RTSP} {
 			l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 			if err != nil {
 				return fmt.Errorf("port %d is already used; stop its owner before starting this lab: %w", port, err)
 			}
 			l.Close()
 		}
-		for _, addr := range []string{fmt.Sprintf("%s:%d", item.host, item.ports.SRT), fmt.Sprintf("127.0.0.1:%d", item.ports.ICE)} {
-			l, err := net.ListenPacket("udp", addr)
-			if err != nil {
-				return fmt.Errorf("cannot use %s; a service may own it, or the Mac's address changed: %w", addr, err)
-			}
-			l.Close()
+		addr := fmt.Sprintf("%s:%d", item.host, item.ports.SRT)
+		l, err := net.ListenPacket("udp", addr)
+		if err != nil {
+			return fmt.Errorf("cannot use %s; a service may own it, or the Mac's address changed: %w", addr, err)
 		}
+		l.Close()
 	}
 	return nil
 }
 
+// One-release migration check only: an old receiver can still own its browser
+// listener while stopping. These ports are never reserved or opened by new labs.
+var legacyBrowserTCPPorts = [2]int{18889, 28889}
+
 func mediaServicesPresent(_ Settings) bool {
+	check := func(port int) bool {
+		connection, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 100*time.Millisecond)
+		if err != nil {
+			return false
+		}
+		connection.Close()
+		return true
+	}
 	for _, ports := range []Ports{Field, Central} {
-		for _, port := range []int{ports.RTSP, ports.Web, ports.API} {
-			connection, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 100*time.Millisecond)
-			if err == nil {
-				connection.Close()
+		for _, port := range []int{ports.RTSP, ports.API} {
+			if check(port) {
 				return true
 			}
+		}
+	}
+	for _, port := range legacyBrowserTCPPorts {
+		if check(port) {
+			return true
 		}
 	}
 	return false

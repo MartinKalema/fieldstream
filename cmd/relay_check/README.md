@@ -21,7 +21,7 @@ process command lines.
 - **CPU:** the forwarding process's accumulated processor time during the
   observed window, divided by elapsed time. One fully occupied processor core
   is 100%; two cores can be 200%. Zero is a valid result at the precision provided
-  by `ps`. The camera encoder, receiver, browser, recorder and uploader are
+  by `ps`. The camera encoder, receiver, viewer, recorder and uploader are
   separate processes and are not included.
 - **Memory:** the average and maximum of resident memory samples, in KiB. This
   is sampled memory, not the largest allocation that could have occurred between
@@ -45,4 +45,5 @@ never calculated across a restart or only from the surviving samples.
 
 This check does not measure camera-to-screen delay, freezes, text readability
 or long-term reliability. A brief interruption between samples can be missed.
-Use the filmed-clock and browser measurements alongside it.
+Use manual filmed-clock readings in GStreamer alongside it. Native frame and
+freeze counters are not implemented by this command.

@@ -3,46 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Camera delay check</title>
+<title>Manual video delay check</title>
 <link rel="stylesheet" href="/style.css">
-<script src="/reader.js" defer></script>
-<script src="/vendor/qrcode.js" defer></script>
-<script type="module" src="/app.mjs"></script>
-<script type="module" src="/optical.mjs"></script>
+<script src="/clock.js" defer></script>
 </head>
 <body>
-<main data-source="{{.Source}}" data-sources="{{.AllowedSources}}">
+<main>
 <h1>Measure the age of the picture</h1>
-<p>Keep broadcasting. Point the camera at the large white clock below so the digits fill most of its picture.</p>
-<section class="target" aria-label="Clock to film"><small>TIME NOW — POINT THE CAMERA HERE</small><div class="target-content"><div><div class="clock" id="clock">0000.00</div><div>seconds since this page opened</div></div><canvas id="delay-marker" width="296" height="296" aria-label="Automatic delay test pattern" hidden></canvas></div></section>
-<section class="calibration" aria-label="Automatic delay measurement">
-<div class="test-actions"><button id="age-start" type="button">Start 2-minute measurement</button><button id="age-stop" type="button" disabled>Stop measurement</button><span id="age-remaining"></span></div>
-<p id="age-notice" role="status" aria-live="polite">Point the camera only at the white clock and pattern. Then start the test.</p>
-<p class="note">This test estimates delay by reading a pattern the camera filmed. Frame only the white target: other copies of the pattern can make the reading ambiguous. The range covers the time each pattern stayed on screen; screen refresh and camera exposure add uncertainty. It is not a guaranteed delay bound.</p>
+<p>Keep broadcasting. Point the camera at the white clock so its digits are easy to read.</p>
+<section class="target" aria-label="Clock to film">
+<p class="target-label">TIME NOW — POINT THE CAMERA HERE</p>
+<div class="clock" id="clock">0000.00</div>
+<p class="target-unit">seconds since this clock started</p>
 </section>
-<p class="scope">Warnings check whether this browser receives new picture timestamps. <strong>Camera age is not verified.</strong> A moving picture can still be delayed; use the filmed clock to check.</p>
-<div class="views">
-<article id="local-panel" data-state="starting">
-<h2>1. Local picture</h2>
-<div class="health"><strong id="local-state" role="status" aria-live="polite">Waiting for a picture</strong><p id="local-detail">Checking playback…</p><small id="local-connection">Connection: checking</small></div>
-<video id="local-video" muted autoplay playsinline controls aria-label="Local camera picture"></video>
-<div class="age-reading"><small>APPROXIMATE DELAY · LATEST SAMPLED FRAME</small><strong id="local-age-current">Measurement unavailable</strong><p id="local-age-reason">Start the automatic test.</p><p id="local-age-summary" class="note">No successful samples yet.</p></div>
-<div class="actions"><button id="local-reconnect" type="button">Reconnect this viewer</button><span id="local-last-event">No interruption recorded on this page.</span></div>
-</article>
-<article id="forwarded-panel" data-state="starting">
-<h2>2. Forwarded picture</h2>
-<div class="health"><strong id="forwarded-state" role="status" aria-live="polite">Waiting for a picture</strong><p id="forwarded-detail">Checking playback…</p><small id="forwarded-connection">Connection: checking</small></div>
-<video id="forwarded-video" muted autoplay playsinline controls aria-label="Forwarded camera picture"></video>
-<div class="age-reading"><small>APPROXIMATE DELAY · LATEST SAMPLED FRAME</small><strong id="forwarded-age-current">Measurement unavailable</strong><p id="forwarded-age-reason">Start the automatic test.</p><p id="forwarded-age-summary" class="note">No successful samples yet.</p></div>
-<div class="actions"><button id="forwarded-reconnect" type="button">Reconnect this viewer</button><span id="forwarded-last-event">No interruption recorded on this page.</span></div>
-</article>
-</div>
-<p>The delay is the big clock's number minus the number visible inside each video. Example: 42.50 − 40.20 = <strong>2.30 seconds behind</strong>.</p>
-<p class="note">Warnings appear after 1.5 seconds without a new presented picture, while this page can run. A hidden tab, suspended browser, paused player or unavailable observation is labelled separately. Recovery needs one second of advancing pictures. A still scene is normal: new frames can show the same objects.</p>
-<p class="note">Wait for both videos to settle. A screenshot containing all three clocks gives an approximate manual measurement. Use it to check the automatic test. Playback warnings alone cannot detect a frozen camera that keeps sending new timestamps; the pattern test can measure the growing age while its pattern remains readable.</p>
-<details><summary>Automatic measurement results and limits</summary><p class="note">The typical value is the median of successful samples' midpoints. The largest upper value is the largest sampled marker interval endpoint, not a maximum for the system. Failed reads are excluded from those summaries and counted separately. A hidden page, interrupted browser or reconnected viewer ends the test. Starting another test clears these results. The check reads at most twice per second per picture, so it can miss short events.</p><pre id="age-diagnostics">No automatic test yet.</pre></details>
-<details><summary>Recent playback events</summary><p class="note">Only the last 12 state changes are kept in this page. Closing or reloading the page clears them. No recording or camera settings are changed.</p><ol id="events"><li>No playback events yet.</li></ol></details>
-<details><summary>What the browser can observe</summary><pre id="diagnostics">Waiting for playback observations.</pre></details>
+<noscript><p>This clock needs JavaScript to run. Enable it before taking a measurement.</p></noscript>
+<h2>Compare with the GStreamer picture</h2>
+<ol>
+<li>Place the GStreamer video window beside this page. Keep the white clock visible and the page in the foreground.</li>
+<li>Wait for the picture to settle. Take one screenshot that includes this clock and the clock inside the video.</li>
+<li>Subtract the number inside the video from the number on this page.</li>
+</ol>
+<p class="example">Example: 42.50 − 42.20 = <strong>0.30 seconds behind</strong> (300 milliseconds).</p>
+<p>This is an approximate check. Screen refresh, camera exposure, video frame timing and screenshot timing add uncertainty. Repeat it several times; one screenshot cannot prove a maximum delay.</p>
+<p class="note">This page only displays a clock. It does not play video, calculate delay automatically or change camera settings. Keep it visible during a check; if the browser or computer pauses, start a new check after it resumes.</p>
 </main>
 </body>
 </html>

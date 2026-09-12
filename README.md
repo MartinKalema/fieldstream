@@ -12,7 +12,7 @@ A 1,252,488-byte generated recording was uploaded and confirmed in the private R
 
 Old footage, including that historical R2 test object, was deleted at the user's request on 12 September 2026. Newer footage and measurement reports were retained. [Cleanup scope and verification](docs/footage-cleanup.md).
 
-The local and forwarded browser players displayed the generated 720p `camera-01` stream; see [the browser check](reports/browser-check.json). That check does not establish two-source browser load, physical camera compatibility or camera-to-screen delay.
+The earlier browser players have been removed. Their saved observations remain historical evidence; they do not establish GStreamer reliability or delay.
 
 Start with the researched [constraints and language decision](docs/constraints-and-language-choice.md). The selected design uses Go for service management and uploads, SQLite for durable progress, and Cloudflare R2 for the recording archive. The wider network and power-failure experiments remain later stages.
 
@@ -41,13 +41,24 @@ If this computer changes networks, stop the lab and run `./lab setup` again. Sou
 
 Read [the source setup guide](docs/source-setup.md) for compatible senders and connection details.
 
-Use [the diagnostic tools guide](docs/developer-tools.md) to run the local-versus-forwarded clock page, compare browser buffering, or generate private Larix connection QR codes from this checkout.
+Use [the diagnostic tools guide](docs/developer-tools.md) to open a white clock target for manual GStreamer delay measurements, run bounded native-viewer checks, or generate private Larix connection QR codes. The clock page contains no video player or automatic video measurements.
 
-The clock page also shows [picture-progress warnings](docs/picture-stall-warning.md) for each player. A connection can remain open while its picture stops advancing. These warnings check browser playback; use the filmed clock to establish how old the camera picture is.
+[GStreamer is the live viewer](docs/gstreamer-viewer.md). It reads the external camera through the existing receiver and stays open until you close it. The interface for signing in, choosing permitted cameras and managing user roles is still future work; changing the video viewer does not provide those access checks. [Viewer and interface decision](docs/decisions/003-gstreamer-live-viewer.md).
 
-Its optional [automatic picture-delay test](docs/automatic-picture-delay.md) reads a changing pattern filmed by the camera during a visible two-minute run. It reports approximate intervals and failed readings separately; the manual filmed clock remains a check on those estimates.
+When updating an existing browser-based installation, stop the lab, rebuild,
+run setup to regenerate the saved server configuration, then restart it:
 
-[GStreamer is the normal live viewer](docs/gstreamer-viewer.md). It reads the external camera through the existing receiver and stays open until you close it. The browser tools remain available for measurements. The interface for signing in, choosing permitted cameras and managing user roles is still future work; changing the video viewer does not provide those access checks. [Viewer and interface decision](docs/decisions/003-gstreamer-live-viewer.md).
+```sh
+./lab stop
+./lab build
+./lab setup
+./lab start
+./lab view
+```
+
+Setup preserves registered source identities and credentials. Rebuild and
+restart any separately running `clock_check` helper too. Rebuilding alone does
+not replace an already running program or its saved server configuration.
 
 ## Add another device
 
@@ -81,12 +92,7 @@ Each command opens one window; GStreamer currently calls all of them
 "OpenGL renderer", so use the source and route printed in each terminal to keep
 track. A stopped or failed connection requires reopening the viewer.
 
-Optional browser comparison addresses:
-
-- Local picture: <http://127.0.0.1:18889/camera-01>
-- Forwarded picture: <http://127.0.0.1:28889/camera-01>
-
-Use `/camera-02` for the second source, or run `./lab source list` for every viewing command and browser address. Open viewers on **this computer**. `127.0.0.1` means the computer running the viewer; another device cannot use these addresses to reach the lab. Only incoming source video is exposed on the local network. GStreamer currently has none of the browser comparison page's picture-progress warnings or automatic clock measurements.
+Run `./lab source list` for every viewing command. Open viewers on **this computer**. GStreamer requests the selected video from the local receiver; only incoming source video is exposed on the local network. Browser live playback is disabled. Native picture-progress warnings and automatic clock measurements are not implemented yet.
 
 ## Try the experiments
 
@@ -112,7 +118,7 @@ Without `--source`, control commands select the first configured source. `status
 
 `profile detail` keeps the incoming picture's pixel dimensions, sends 20 pictures per second, and targets 1,200 kilobits per second. For a 1280 × 720 camera, its output remains 1280 × 720. `profile small` changes the forwarded picture to 640 × 360 at 20 pictures per second, targeting about 650 kilobits per second. Both use more processing than forwarding unchanged video. `profile copy` restores the incoming compressed video without another video encode. A profile switch briefly interrupts the forwarded picture. These target rates do not include all network overhead or guarantee readable detail.
 
-See [the live profile trial](docs/live-detail-profile.md) for the settings, measurement procedure and rollback. The read-only `relay_check` command measures forwarding CPU, sampled memory and received payload rate; use the clock and browser checks alongside it to assess delay and stalls.
+See [the live profile trial](docs/live-detail-profile.md) for the settings, measurement procedure and rollback. The read-only `relay_check` command measures forwarding CPU, sampled memory and received payload rate; use the filmed clock and native viewer observations alongside it to assess delay and visible problems.
 
 In two physical-camera repeats, `detail` forwarded roughly 37–40% less payload at 720p/20 fps, using 18–19% of one CPU core. Its ordinary filmed-clock readings were 0.42–0.46 seconds old, compared with 0.34–0.38 seconds for `copy`. A later copy screenshot showed both pictures over six seconds old despite ready service status, then recovered. The workspace keeps `copy` as its local baseline. [Live results and limitations](docs/live-detail-results.md).
 
@@ -166,7 +172,12 @@ The [archive crash-recovery checks](docs/archive-recovery.md) kill an isolated u
 
 Register `camera-02` before using its demo commands. Each demo is a moving **test pattern**. Use `./lab stop` to finish the whole demonstration: it stops recorders before generated senders. To replace only one demo with a real device, use `./lab --source camera-01 demo-stop`; this removes that source and can leave an incomplete final frame. Other sources can keep sending. The acceptance test checks simultaneous decoding and recording, separate forwarding controls, both recovery waits, full-size and smaller 20 fps picture settings, rejected credentials and SQLite persistence. It requires the normal lab to be stopped and uses private, loopback-only settings and recordings. Reports go in `reports/`; the selected experimental receiver passed all **100 assertions**, including a frozen receiver, both forwarding links, full decoding of **54 finalized clips** and SQLite persistence after orderly shutdown. [Live-profile acceptance results](reports/integration-live-detail-profile.json).
 
-These tests do not measure camera-to-screen delay or establish long-term availability. The single-source generated browser check is recorded separately from media-file and two-source checks.
+These tests do not measure camera-to-screen delay or establish long-term availability. Earlier browser measurements are separate historical results; native viewing still needs its own longer runs, connection-failure tests and repeated clock readings.
+
+After browser removal on 13 September 2026, the full media test passed **100 of
+100 checks**, fully decoding **52 finalized generated recordings**, with no
+cleanup errors. The camera reconnected after the normal services restarted.
+[Removal regression report](reports/integration-browser-removal-20260913.json).
 
 ## Stop and diagnose
 
@@ -190,7 +201,7 @@ This workspace currently selects `.tools/mediamtx-active -> mediamtx-v1.21.0-clo
 ./lab start
 ```
 
-Each source requires its own generated publisher credentials and SRT media passphrase. Management, viewers and forwarding between local services are restricted to this computer. This milestone assumes a trusted computer and local network. Private tunnels for untrusted networks, stronger viewer access controls, separate machines, Linux network impairment and full browser freshness measurements remain future work.
+Each source requires its own generated publisher credentials and SRT media passphrase. Management, viewing and forwarding between local services are restricted to this computer. This milestone assumes a trusted computer and local network. Private tunnels for untrusted networks, user roles and media access checks, separate machines, Linux network impairment and native picture-freshness measurements remain future work.
 
 The source tree contains Go code and an embedded text template for each source's private instructions. The built program does not need the source template on disk. The small `lab` shell script launches the compiled Go program; it builds only when explicitly asked with `./lab build`. The earlier Python implementation has been removed.
 

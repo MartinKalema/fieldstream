@@ -36,7 +36,7 @@ func printViewers(p lab.Paths) error {
 		return err
 	}
 	for _, source := range lab.GetSources(settings) {
-		fmt.Printf("%s (%s)\n  Watch locally: ./lab --source %s view local\n  Watch forwarded: ./lab --source %s view forwarded\n  Browser checks: http://127.0.0.1:%d/%s and http://127.0.0.1:%d/%s\n", source.ID, source.Label, source.ID, source.ID, lab.Field.Web, source.ID, lab.Central.Web, source.ID)
+		fmt.Printf("%s (%s)\n  Watch locally: ./lab --source %s view local\n  Watch forwarded: ./lab --source %s view forwarded\n", source.ID, source.Label, source.ID, source.ID)
 	}
 	return nil
 }
