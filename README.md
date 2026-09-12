@@ -42,6 +42,8 @@ The clock page also shows [picture-progress warnings](docs/picture-stall-warning
 
 Its optional [automatic picture-delay test](docs/automatic-picture-delay.md) reads a changing pattern filmed by the camera during a visible two-minute run. It reports approximate intervals and failed readings separately; the manual filmed clock remains a check on those estimates.
 
+The separate [GStreamer viewer experiment](docs/gstreamer-viewer.md) reads the same camera in a desktop window with an explicit small waiting buffer. It leaves the live setup unchanged and lets you compare the desktop and browser pictures using the filmed clock. Installing or opening it alone does not prove a speed improvement.
+
 ## Add another device
 
 Register a separate source for each device while the lab is stopped. The example below applies when `camera-02` does not already exist; use `source list` first. This workspace already has both example sources.

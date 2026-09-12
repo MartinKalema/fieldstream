@@ -32,6 +32,16 @@ Then `?source=camera-02` selects that allowed source in the page. Up to four dis
 
 For the separate browser buffering experiment on port 19081, see [the browser_check guide](../cmd/browser_check/README.md).
 
+## Desktop viewer comparison
+
+With GStreamer installed, open a separate, time-limited viewer of a registered source:
+
+```sh
+go run ./cmd/gstreamer_check --root . --source camera-01 --duration 120s
+```
+
+Use `--route forwarded` for the forwarded picture or `--gst-launch /path/to/gst-launch-1.0` for a private installation. This command reads the existing loopback video endpoint and changes no camera, recording or upload settings. Its private report records the process outcome, not camera-to-screen delay. See [the GStreamer comparison guide](gstreamer-viewer.md) for installation details, the decoder choices and the filmed-clock method.
+
 ## Live forwarding cost
 
 ```sh
