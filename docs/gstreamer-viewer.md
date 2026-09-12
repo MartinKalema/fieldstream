@@ -243,6 +243,36 @@ and no input frame errors, but that snapshot cannot exclude an earlier event.
 
 The 100 ms setting is now the starting point for this optional viewer. The
 one-picture decoded queue and camera settings are unchanged. This short trial
-does not establish long-term image reliability. A simultaneous filmed-clock
-comparison with the browser is still needed: no speed improvement is claimed.
+does not establish long-term image reliability.
 Private evidence is saved in `reports/gstreamer-motion-quality-20260913.json`.
+
+### Simultaneous filmed-clock comparison
+
+The observer supplied two screenshots from a further 120-second run using the
+100 ms setting, software decoder and local route. Each image contains the
+direct clock, the native GStreamer window and both browser pictures. The table
+uses the first filmed white clock in each picture, excluding recursive copies.
+Two independent readings agreed on the digits.
+
+| Screenshot time | Direct clock | GStreamer filmed clock → delay | Browser local filmed clock → delay | Browser forwarded filmed clock → delay |
+| --- | --- | --- | --- | --- |
+| 02:07:05 | 655.78 | 655.35 → **0.43 s** | 655.35 → **0.43 s** | 655.31 → **0.47 s** |
+| 02:07:31 | 680.84 | 680.62 → **0.22 s** | 680.48 → **0.36 s** | 680.52 → **0.32 s** |
+
+For example, 680.84 − 680.62 gives approximately 0.22 seconds for GStreamer.
+Its picture matched the local browser's age in the first screenshot and was
+approximately **0.14 seconds newer** in the second. This shows a faster moment,
+not a consistent improvement. Two samples cannot establish an average, a
+maximum or dependable performance. Exposure, screen refresh, frame timing and
+screenshot capture limit the precision.
+
+The second forwarded browser picture was slightly newer than the local browser
+picture. These players present video independently; the difference does not
+mean that forwarding took negative time. GStreamer and the browser also use
+different receiving methods, so the result does not isolate decoding alone.
+
+The next controlled comparison is the Mac's hardware decoder with the same
+100 ms wait and camera settings, checking repeated delay readings and movement
+quality. The software setting remains the default until that comparison is
+complete. Private readings and screenshot references are in
+`reports/gstreamer-clock-comparison-20260913.json`.
