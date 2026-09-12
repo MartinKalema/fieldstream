@@ -646,29 +646,7 @@ func (r *integrationRun) checks(ctx context.Context) error {
 	if err := r.relayLinkCheck(ctx, remoteURL); err != nil {
 		return err
 	}
-	fmt.Println("Changing camera-01's delivery size while camera-02 keeps its own profile.")
-	if _, err := r.sourceCommand(ctx, 5*time.Second, integrationFirstSource, "profile", "small"); err != nil {
-		return err
-	}
-	if _, err := r.waitVideo(ctx, "camera-01: small profile decodes at 640 × 360 and 20 fps", remoteURL, 640, 360, 20, 25*time.Second); err != nil {
-		return err
-	}
-	if err := r.waitRelayLink(ctx, "camera-01: small profile remains on the local RTSP/TCP relay", "local"); err != nil {
-		return err
-	}
-	if _, err := r.waitVideo(ctx, "camera-01: local source stays at 1280 × 720 and 30 fps", localURL, 1280, 720, 30, 12*time.Second); err != nil {
-		return err
-	}
-	if _, err := r.waitVideo(ctx, "camera-02: forwarded video keeps its independent 1280 × 720 profile", otherRemoteURL, 1280, 720, 30, 12*time.Second); err != nil {
-		return err
-	}
-	if _, err := r.sourceCommand(ctx, 5*time.Second, integrationFirstSource, "profile", "copy"); err != nil {
-		return err
-	}
-	if _, err := r.waitVideo(ctx, "camera-01: copy profile restores 1280 × 720 delivery", remoteURL, 1280, 720, 30, 25*time.Second); err != nil {
-		return err
-	}
-	if err := r.waitRelayLink(ctx, "camera-01: restored copy profile remains on the local RTSP/TCP relay", "local"); err != nil {
+	if err := r.deliveryProfileCheck(ctx); err != nil {
 		return err
 	}
 	return r.recordingPersistence(ctx)

@@ -208,7 +208,7 @@ func TestWorkerTracksProgressOnlyForLocalRelayAndResetsOnStart(t *testing.T) {
 	for _, tc := range []struct {
 		name, key string
 		tracked   bool
-	}{{"relay/camera-01", "copy/local", true}, {"relay/camera-02", "small/local", true}, {"relay/camera-01", "copy/srt/120ms", false}, {"recorder/camera-01", "camera-01", false}, {"demo/camera-01", "camera-01", false}} {
+	}{{"relay/camera-01", "copy/local", true}, {"relay/camera-02", "small/local", true}, {"relay/camera-01", "detail/local", true}, {"relay/camera-01", "detail/srt/300ms", false}, {"relay/camera-01", "copy/srt/120ms", false}, {"recorder/camera-01", "camera-01", false}, {"demo/camera-01", "camera-01", false}} {
 		w := &worker{name: tc.name}
 		defer w.stop()
 		build := func() ([]string, error) { return []string{program}, nil }
