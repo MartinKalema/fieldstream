@@ -1,4 +1,4 @@
-// relaycheck reads the running lab. It never changes a video or upload setting.
+// relay_check reads the running lab. It never changes a video or upload setting.
 package main
 
 import (
@@ -31,7 +31,7 @@ type options struct {
 
 func parseOptions(args []string, output io.Writer) (options, error) {
 	var cfg options
-	flags := flag.NewFlagSet("relaycheck", flag.ContinueOnError)
+	flags := flag.NewFlagSet("relay_check", flag.ContinueOnError)
 	flags.SetOutput(output)
 	flags.StringVar(&cfg.Root, "root", ".", "lab project folder")
 	flags.StringVar(&cfg.Source, "source", "camera-01", "source ID to observe")

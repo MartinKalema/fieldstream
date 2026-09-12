@@ -56,7 +56,7 @@ The real-media tests generated a complete 12-frame clip, a version with destroye
 Run the focused checks with FFmpeg installed:
 
 ```sh
-go test ./internal/lab ./cmd/videolab -run 'TestVideoHealth|TestRecordings' -count=1 -v
+go test ./internal/lab ./cmd/video_lab -run 'TestVideoHealth|TestRecordings' -count=1 -v
 ```
 
 The real-media cases explicitly skip if FFmpeg is absent; they need a build with the `libx264` encoder to generate fixtures. These file-decoding tests need no running camera or media server. They do not change the live recording/forwarding pipeline, and are separate from `./lab test`, which requires that pipeline to be stopped.

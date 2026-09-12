@@ -8,7 +8,7 @@ is recent.** Keep using the filmed clock to measure camera-to-screen delay.
 From the repository root:
 
 ```sh
-go run ./cmd/clockcheck --source camera-01
+go run ./cmd/clock_check --source camera-01
 ```
 
 Open the printed address, normally `http://127.0.0.1:19080/`. The page opens two
@@ -18,7 +18,7 @@ with its own playback warning and **Reconnect this viewer** button.
 To permit another source in the same helper, list it explicitly:
 
 ```sh
-go run ./cmd/clockcheck --source camera-01 --sources camera-01,camera-02
+go run ./cmd/clock_check --source camera-01 --sources camera-01,camera-02
 ```
 
 Then `http://127.0.0.1:19080/?source=camera-02` selects that allowed source.
@@ -52,7 +52,7 @@ Use **Reconnect this viewer** to close and reopen just that picture's browser
 read session. It can help when that reader is stuck, but does not prove or repair
 an upstream fault. This tool does not change camera capture, forwarding,
 recording or R2 uploads. It preserves browser-default video buffering. The
-separate [browser buffer experiment](../cmd/browsercheck/README.md) is where
+separate [browser buffer experiment](../cmd/browser_check/README.md) is where
 buffer settings are compared.
 
 ## Why watch the browser
@@ -114,11 +114,11 @@ processor use.
 ## Check the implementation
 
 ```sh
-go test ./cmd/clockcheck ./internal/viewer ./cmd/browsercheck
-node --test cmd/clockcheck/watch_test.mjs
-node --test cmd/clockcheck/app_test.mjs
-node --test cmd/browsercheck/metrics_test.mjs
-node --check cmd/clockcheck/assets/app.mjs
+go test ./cmd/clock_check ./internal/viewer ./cmd/browser_check
+node --test cmd/clock_check/watch_test.mjs
+node --test cmd/clock_check/app_test.mjs
+node --test cmd/browser_check/metrics_test.mjs
+node --check cmd/clock_check/assets/app.mjs
 ```
 
 The watch tests exercise progress, interruptions, recovery and unavailable
@@ -129,15 +129,15 @@ The Go tests cover the local HTTP boundary and embedded assets.
 They do not establish behavior in every browser or explain a physical-camera
 stall.
 
-The [isolated browser fixture](../cmd/clockcheck/testdata/fixture/README.md) uses
+The [isolated browser fixture](../cmd/clock_check/testdata/fixture/README.md) uses
 the production page and monitor with real in-page WebRTC peers and generated
 canvas video. Its controls hold frames while keeping those peer connections
 open, then resume or end them. It does not contact the live camera or WHEP
 services. Its tests are under `testdata`, so run them explicitly:
 
 ```sh
-go test ./cmd/clockcheck/testdata/fixture
-go vet ./cmd/clockcheck/testdata/fixture
+go test ./cmd/clock_check/testdata/fixture
+go vet ./cmd/clock_check/testdata/fixture
 ```
 
 A real-browser fixture run and a live-reader check are separate validation steps.

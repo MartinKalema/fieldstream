@@ -232,7 +232,7 @@ func runBandwidth(parent context.Context, root, ffmpeg, mtx, version string, opt
 			"The normal controller, camera settings, recording catalog and R2 queue are not read or changed. Only private generated files and loopback test services are used; the test still shares this computer's CPU and disk.",
 		}}
 	for _, file := range []string{"main.go", "scoring.go", "bandwidth_compare.go", "bandwidth_queue.go", "bandwidth_calibration.go"} {
-		report.SourceHashes[file] = fileSHA256(filepath.Join(root, "cmd", "netcheck", file))
+		report.SourceHashes[file] = fileSHA256(filepath.Join(root, "cmd", "net_check", file))
 	}
 	save := func() error { return writeJSON(filepath.Join(dir, "results.json"), report) }
 	if err = save(); err != nil {

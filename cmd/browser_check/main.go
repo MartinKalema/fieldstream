@@ -1,4 +1,4 @@
-// browsercheck serves a separate, bounded WebRTC browser-buffer experiment.
+// browser_check serves a separate, bounded WebRTC browser-buffer experiment.
 // It does not read lab credentials, modify settings or control media services.
 package main
 

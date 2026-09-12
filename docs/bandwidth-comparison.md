@@ -14,14 +14,14 @@ From the project folder, with Go, FFmpeg with libx264/SRT support, and the corre
 MediaMTX receiver selected:
 
 ```sh
-go run ./cmd/netcheck --root . --bandwidth-compare
+go run ./cmd/net_check --root . --bandwidth-compare
 ```
 
 The defaults compare all three encodings at unlimited, 1,500 and 900 kilobits per
 second, twice: 18 trials. To repeat those exact settings explicitly:
 
 ```sh
-go run ./cmd/netcheck --root . --bandwidth-compare \
+go run ./cmd/net_check --root . --bandwidth-compare \
   --rates 0,1500,900 --queue-bytes 32768 \
   --encodings copy,detail20,small20 --seeds 17,41
 ```
@@ -29,7 +29,7 @@ go run ./cmd/netcheck --root . --bandwidth-compare \
 For a shorter check of one candidate with and without the limit:
 
 ```sh
-go run ./cmd/netcheck --root . --bandwidth-compare \
+go run ./cmd/net_check --root . --bandwidth-compare \
   --rates 0,900 --encodings detail20 --seeds 17
 ```
 

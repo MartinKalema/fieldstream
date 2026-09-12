@@ -1,6 +1,6 @@
 # Compare compression on a saved recording
 
-`qualitycheck` makes two smaller-video candidates from one completed recording or a fixed generated test scene. It shows their actual file sizes, picture similarity and processing cost, with a local page for watching the differences. It preserves received recordings and does not change camera settings, live forwarding profiles or upload history.
+`quality_check` makes two smaller-video candidates from one completed recording or a fixed generated test scene. It shows their actual file sizes, picture similarity and processing cost, with a local page for watching the differences. It preserves received recordings and does not change camera settings, live forwarding profiles or upload history.
 
 The saved recording is already compressed video that reached this computer. It is the reference for this experiment, not an uncompressed camera original. No measured compression results are claimed in this guide.
 
@@ -9,7 +9,7 @@ The saved recording is already compressed video that reached this computer. It i
 Run from the project folder after normal setup. Go is needed for `go run`; FFmpeg and FFprobe must be available at the paths saved by setup. FFmpeg needs the `libx264` encoder and `ssim` filter.
 
 ```sh
-go run ./cmd/qualitycheck --recording 'SESSION/FILE.mp4'
+go run ./cmd/quality_check --recording 'SESSION/FILE.mp4'
 ```
 
 Replace `SESSION/FILE.mp4` with the exact relative filename of a completed MP4 in the recording catalog. Omit the leading `recordings/`. An arbitrary file, URL or unfinished recording is not accepted. If you have used the recording-health checker, `./lab recordings health --json` includes its checked recording paths.
@@ -19,13 +19,13 @@ The command creates a private folder under `reports/quality-run-*`, prints a sum
 To create the files and exit without starting a page:
 
 ```sh
-go run ./cmd/qualitycheck --recording 'SESSION/FILE.mp4' --no-serve
+go run ./cmd/quality_check --recording 'SESSION/FILE.mp4' --no-serve
 ```
 
 To reopen a completed comparison without encoding it again:
 
 ```sh
-go run ./cmd/qualitycheck --report-dir '/path/to/field-video-lab/reports/quality-run-EXAMPLE'
+go run ./cmd/quality_check --report-dir '/path/to/field-video-lab/reports/quality-run-EXAMPLE'
 ```
 
 Use the actual folder printed by the earlier run. Choose exactly one of `--recording`, `--report-dir` or `--test-scene`. Adding `--no-serve` when reopening validates the files, prints their saved summary and exits. Stop the page with Ctrl+C; the report files remain available.
@@ -37,9 +37,9 @@ The diagnostic does not start or stop media services. It does use CPU and disk, 
 Use these when a camera is unavailable or when you need the same pictures on every run:
 
 ```sh
-go run ./cmd/qualitycheck --test-scene fast-motion --no-serve
-go run ./cmd/qualitycheck --test-scene fine-detail --no-serve
-go run ./cmd/qualitycheck --test-scene dim-noise --no-serve
+go run ./cmd/quality_check --test-scene fast-motion --no-serve
+go run ./cmd/quality_check --test-scene fine-detail --no-serve
+go run ./cmd/quality_check --test-scene dim-noise --no-serve
 ```
 
 Each command creates its own private report folder. Reopen one with `--report-dir`, or omit `--no-serve` to open its viewer immediately. An occupied port is reported as an error; choose another with `--listen`.
@@ -136,8 +136,8 @@ Keeping the diagnostic separate also lets the recording and upload workflow cont
 Run the focused tests with FFmpeg and FFprobe installed:
 
 ```sh
-go test ./cmd/qualitycheck -count=1 -v
-node --test cmd/qualitycheck/page_test.mjs
+go test ./cmd/quality_check -count=1 -v
+node --test cmd/quality_check/page_test.mjs
 ```
 
 The real-media cases use generated clips in temporary folders and skip explicitly if the media tools are missing. They check unchanged source bytes, output dimensions and frame counts, full reference coverage, an identical-picture control, incorrect timing, different pictures and truncated inputs. Scene tests check all three fixed recipes, repeatable seeded pictures, overwrite protection and an end-to-end run that creates no recording catalog or recording directory. Other tests cover catalog/history preservation, older schemas, missing or changed files, path escapes, report completeness, scene provenance, checksums and local HTTP access. Page tests cover safe media paths, size increases, similarity labels, generated-scene labels and shared playback bounds.

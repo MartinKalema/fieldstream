@@ -1,12 +1,12 @@
 # Controlled video network comparison
 
-For the separate rate-limit experiment, run `go run ./cmd/netcheck --bandwidth-compare`
+For the separate rate-limit experiment, run `go run ./cmd/net_check --bandwidth-compare`
 and follow the [bandwidth comparison guide](../../docs/bandwidth-comparison.md).
 It compares three saved encodings at unlimited, 1,500 and 900 kbps with a fixed
 120 ms recovery allowance. The method below describes the original delay, loss
 and interruption experiment, which remains the default command.
 
-Run `go run ./cmd/netcheck` from the project directory. The command uses the
+Run `go run ./cmd/net_check` from the project directory. The command uses the
 selected corrected MediaMTX binary, creates private test credentials and fresh
 loopback ports, and saves evidence under `.local/diagnostics/netcheck-<time>/`.
 It does not read the lab's normal settings, use a physical camera, change the
@@ -15,7 +15,7 @@ active services, or send anything to R2. Avoid other heavy tests during a run.
 The complete comparison takes about four minutes. A short check is available:
 
 ```sh
-go run ./cmd/netcheck -only clean -seeds 17 -latencies 120
+go run ./cmd/net_check -only clean -seeds 17 -latencies 120
 ```
 
 Use `-ffmpeg /path/to/ffmpeg` when FFmpeg is elsewhere, and `-mediamtx /path/to/mediamtx`

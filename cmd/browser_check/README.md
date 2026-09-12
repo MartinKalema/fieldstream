@@ -7,8 +7,8 @@ It creates no media readers until **Start comparison** is pressed.
 From the project directory:
 
 ```sh
-go build -o .local/diagnostics/browsercheck ./cmd/browsercheck
-.local/diagnostics/browsercheck --root . --sources camera-01,camera-02
+go build -o .local/diagnostics/browser_check ./cmd/browser_check
+.local/diagnostics/browser_check --root . --sources camera-01,camera-02
 ```
 
 Open `http://127.0.0.1:19081/?source=camera-01&route=local`. The source ID must be
@@ -106,9 +106,9 @@ Both assets remain available from the same browser URLs.
 ## Checks and primary references
 
 ```sh
-go test ./cmd/browsercheck
-node --test cmd/browsercheck/metrics_test.mjs
-node --check cmd/browsercheck/assets/app.mjs
+go test ./cmd/browser_check
+node --test cmd/browser_check/metrics_test.mjs
+node --check cmd/browser_check/assets/app.mjs
 ```
 
 These tests check calculations, unavailable controls, error handling and proxy

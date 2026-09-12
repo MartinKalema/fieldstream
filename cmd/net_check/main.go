@@ -1,4 +1,4 @@
-// netcheck benchmarks synthetic video on isolated loopback ports. It never loads
+// net_check benchmarks synthetic video on isolated loopback ports. It never loads
 // normal lab settings, records a physical camera, or contacts object storage.
 package main
 
@@ -792,7 +792,7 @@ func runTrial(parent context.Context, dir, ffmpeg, mtx, clip string, p profile, 
 
 func main() {
 	if e := run(); e != nil {
-		fmt.Fprintln(os.Stderr, "netcheck:", e)
+		fmt.Fprintln(os.Stderr, "net_check:", e)
 		os.Exit(1)
 	}
 }
@@ -935,7 +935,7 @@ func run() error {
 	metadata := map[string]any{"receiver_version": strings.TrimSpace(string(version)), "fps": fps, "source_frames": 360, "first_scored_inclusive": firstScored, "last_scored_exclusive": lastScored, "reference_latency_ms": 120, "queue_limit_datagrams": 4096, "incoming_channel_limit": 512, "max_datagram_bytes": 2048, "tee_fifo_queue_frames": 30, "impairment": "Both directions; independent uniform jitter and Bernoulli loss affect all UDP datagrams including handshake/control. Blackout drops both directions for200ms starting4s after first original media packet. PRNG sequence is seeded; OS packet scheduling is not deterministic.", "timing": "Same-process monotonic decoded frame arrival difference against simultaneously published fixed120ms clean reference. Includes receiver/decoder/host scheduling; not absolute source age or camera-to-browser latency. Negative differences retained.", "quality": "Every original encoded-then-decoded source frame in middle270-frame window is denominator. Nonmatching includes corruption/concealment; missing means no matching or nonmatching output assigned to that position. Unknown outputs use PTS mapping inferred from exact matches; inconsistent mappings invalidate timing.", "timeliness": "Exact impaired frame arrival minus exact clean reference arrival <=250/500ms; denominator all270expected, missing/nonmatching/unpaired frames never timely."}
 	metadata["source_sha256"] = fileSHA256(clip)
 	metadata["receiver_sha256"] = fileSHA256(*mtx)
-	metadata["harness_source_sha256"] = fileSHA256(filepath.Join(abs, "cmd/netcheck/main.go"))
+	metadata["harness_source_sha256"] = fileSHA256(filepath.Join(abs, "cmd/net_check/main.go"))
 	metadata["publisher_readrate"] = 1
 	metadata["publisher_readrate_initial_burst"] = 0
 	metadata["publisher_readrate_catchup"] = 1

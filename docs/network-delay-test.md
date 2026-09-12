@@ -33,7 +33,7 @@ Camera-01 was subsequently changed to a 120 ms camera allowance and local RTSP/T
 
 ## Video and measurement
 
-The Go command `cmd/netcheck` generates a 12-second video at 1280 × 720 and 30 pictures per second. It compresses it once as H.264 Baseline at a target 2 Mbps, with no B-frames and an independent keyframe every second. It decodes that encoded file to establish the expected pictures. This avoids treating the normal loss of detail from compression as damage caused by the network.
+The Go command `cmd/net_check` generates a 12-second video at 1280 × 720 and 30 pictures per second. It compresses it once as H.264 Baseline at a target 2 Mbps, with no B-frames and an independent keyframe every second. It decodes that encoded file to establish the expected pictures. This avoids treating the normal loss of detail from compression as damage caused by the network.
 
 Every expected decoded picture has a distinct hash: a short fingerprint calculated from all its pixels. The program checks uniqueness before testing. Exact matching pictures are identified by this fingerprint, even if their video timestamps disagree. Hashes here compare generated test images; they do not authenticate a remote camera.
 
@@ -71,13 +71,13 @@ The report distinguishes gaps between any decoder outputs from gaps between corr
 From the project folder, with the corrected receiver selected:
 
 ```sh
-go run ./cmd/netcheck --root .
+go run ./cmd/net_check --root .
 ```
 
 A clean pilot only:
 
 ```sh
-go run ./cmd/netcheck --root . --only clean --seeds 17 --latencies 120
+go run ./cmd/net_check --root . --only clean --seeds 17 --latencies 120
 ```
 
 The tool uses private loopback ports and generated video. It does not load normal camera credentials or contact R2. It writes source video, raw frame arrivals, process logs, parameters, binary/source hashes and per-trial JSON into a new `.local/diagnostics/netcheck-*` directory. Avoid other media tests while it runs: CPU contention changes the measurement.

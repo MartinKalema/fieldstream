@@ -3,7 +3,7 @@
 Run from the project folder while the camera and forwarding process are already running:
 
 ```sh
-go run ./cmd/relaycheck --root . --source camera-01 --duration 30s
+go run ./cmd/relay_check --root . --source camera-01 --duration 30s
 ```
 
 This command reads the lab and process counters. It does not select a profile,

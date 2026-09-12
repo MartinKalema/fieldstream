@@ -17,7 +17,7 @@ Two usable observations gave:
 | First observation | 59.30 ms | 59.53 ms | 900 | 0 / 0 |
 | Completed repeat | 72.01 ms | 71.34 ms | 901 | 0 / 0 |
 
-The second run measured approximately 97 ms from the last packet's arrival to expected display, including about 1.6–1.8 ms of decoding. This interval overlaps buffer time; the two must not be added. Capture timestamps were unavailable. Neither interval measures the entire journey from the camera sensor to the screen. The results show no useful improvement from the zero request, so normal browser buffering remains the selected behavior. [Measured aggregates](../reports/browser-buffer-initial-comparisons.json), [diagnostic instructions](../cmd/browsercheck/README.md), [browser buffer definition](https://www.w3.org/TR/webrtc-stats/#dom-rtcinboundrtpstreamstats-jitterbufferdelay).
+The second run measured approximately 97 ms from the last packet's arrival to expected display, including about 1.6–1.8 ms of decoding. This interval overlaps buffer time; the two must not be added. Capture timestamps were unavailable. Neither interval measures the entire journey from the camera sensor to the screen. The results show no useful improvement from the zero request, so normal browser buffering remains the selected behavior. [Measured aggregates](../reports/browser-buffer-initial-comparisons.json), [diagnostic instructions](../cmd/browser_check/README.md), [browser buffer definition](https://www.w3.org/TR/webrtc-stats/#dom-rtcinboundrtpstreamstats-jitterbufferdelay).
 
 ## Why lowering only the camera setting would not work
 
@@ -43,7 +43,7 @@ On the clean connection, 80 ms delivered matched pictures about **39–40 ms soo
 Run the comparison from the project root:
 
 ```sh
-go run ./cmd/netcheck \
+go run ./cmd/net_check \
   -mediamtx .tools/mediamtx-v1.21.0-clockfix1-lan60/mediamtx \
   -latencies 80,120 -seeds 17,41
 ```

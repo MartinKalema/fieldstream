@@ -18,7 +18,7 @@ if [ "${1:-}" = "build" ]; then
     cd "$LAB_ROOT"
     LAB_BUILD=$(mktemp "$LAB_ROOT/.tools/bin/videolab-build.XXXXXX")
     trap 'rm -f "$LAB_BUILD"' EXIT HUP INT TERM
-    go build -trimpath -o "$LAB_BUILD" ./cmd/videolab
+    go build -trimpath -o "$LAB_BUILD" ./cmd/video_lab
     chmod 700 "$LAB_BUILD"
     mv "$LAB_BUILD" "$LAB_BINARY"
     echo 'Built the Go control program.'
