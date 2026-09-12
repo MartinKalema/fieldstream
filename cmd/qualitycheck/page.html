@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Recorded video comparison</title>
+  <title>Local video comparison</title>
   <link rel="icon" href="data:,">
   <style>
     :root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#10161f;color:#f1f5fa}*{box-sizing:border-box}body{margin:0;padding:28px 24px}main{max-width:1400px;margin:auto}h1{font-size:clamp(25px,3vw,35px);line-height:1.2;margin:0 0 12px}h2{font-size:20px;margin:0 0 12px}p{max-width:1040px;line-height:1.55;color:#c8d3e2;margin:10px 0}.eyebrow{color:#90ddc0;font-size:12px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;margin:0 0 10px}.notice{border-left:3px solid #85cfb4;padding:10px 14px;background:#172923;margin:18px 0;color:#dcf6e9}.section{margin-top:28px}.muted{color:#b1bdce;font-size:14px}.table-wrap{overflow-x:auto;border:1px solid #3b495e;border-radius:8px;margin-top:16px}table{border-collapse:collapse;width:100%;font-size:14px;min-width:960px}caption{text-align:left;padding:14px 16px;color:#cbd6e5;background:#182331}th,td{text-align:left;padding:13px 16px;vertical-align:top;border-top:1px solid #354257}th{color:#c4d0e0;font-size:13px;font-weight:650}tbody th{color:#fff;font-size:14px}tbody tr:nth-child(even){background:#172230}.number{font-variant-numeric:tabular-nums;white-space:nowrap}td small{display:block;color:#aebdcf;margin-top:4px}.choice{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:16px 0}label{font-weight:600}select,button{font:inherit;color:#fff;background:#21334a;border:1px solid #7c8da4;border-radius:6px;padding:9px 12px}select{max-width:100%}button{cursor:pointer;background:#285b86}button:disabled,select:disabled,input:disabled{opacity:.5;cursor:default}button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #90d9ff;outline-offset:3px}.views{display:grid;grid-template-columns:1fr 1fr;gap:18px}article{min-width:0;background:#18222f;border:1px solid #425169;border-radius:8px;overflow:hidden}.video-heading{padding:14px 16px}.video-heading h3{font-size:18px;margin:0 0 4px}.video-heading p{margin:0;font-size:14px}video{width:100%;aspect-ratio:16/9;display:block;background:#000;object-fit:contain}.playback{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:16px 0}.scrub{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;max-width:1000px}input[type=range]{width:100%;accent-color:#8cdcc0;min-width:80px}output{font-variant-numeric:tabular-nums;min-width:105px;font-size:14px}#status{padding:12px 14px;border:1px solid #526580;border-radius:6px;max-width:none}#status.error{border-color:#df9d78;color:#ffe0ca;background:#35251f}details{margin-top:20px}summary{cursor:pointer;color:#d4e4f7;font-weight:600}dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:14px;color:#bdcce0}dt{font-weight:600}dd{margin:0;overflow-wrap:anywhere}code{font-size:12px;overflow-wrap:anywhere}@media(max-width:780px){body{padding:20px 14px}.views{grid-template-columns:1fr}.choice{align-items:flex-start;flex-direction:column}.scrub{grid-template-columns:auto 1fr}.scrub output{grid-column:2}.video-heading{padding:12px}.section{margin-top:24px}dl{grid-template-columns:1fr;gap:4px}dd{margin-bottom:10px}}
@@ -12,15 +12,16 @@
 </head>
 <body>
 <main>
-  <p class="eyebrow">Local recording experiment</p>
-  <h1>How much smaller can this video be?</h1>
-  <p>Compare the original recording with two versions made at 20 frames per second. Look at small details and movement, then compare the file size and the work needed to create each version.</p>
-  <p class="notice">This page plays saved test files. It does not change the current live feed, camera settings or original recording.</p>
+  <p id="provenance-label" class="eyebrow">Local video experiment</p>
+  <h1 id="page-title">How much smaller can this video be?</h1>
+  <p id="introduction">Compare a saved source video with two versions made at 20 frames per second. Source details will appear when the report loads.</p>
+  <p id="provenance-notice" class="notice">This page plays saved test files. It does not change the current live feed, camera settings or saved camera recordings.</p>
+  <p id="scene-note" hidden></p>
   <p id="status" role="status">Loading the local comparison report…</p>
 
   <section class="section" aria-labelledby="results-title">
     <h2 id="results-title">Size, detail and processing cost</h2>
-    <p id="clip-description">Waiting for the recording details.</p>
+    <p id="clip-description">Waiting for the source video details.</p>
     <div class="table-wrap" tabindex="0" role="region" aria-label="Comparison results; scroll horizontally on small screens">
       <table>
         <caption>Actual saved file sizes. Processing times describe this computer and this run.</caption>
@@ -45,7 +46,7 @@
     <p class="muted">Playback and scrubbing are approximately aligned by time. Browsers may display different nearby frames, especially when the frame rates differ. This side-by-side player is not a frame-exact comparison or the source of the SSIM score. Both videos are muted.</p>
   </section>
 
-  <details><summary>About this run and comparison method</summary><dl><dt>Created</dt><dd id="created">Unavailable</dd><dt>Encoder / decoder</dt><dd id="ffmpeg-version">Unavailable</dd><dt>Original file SHA-256</dt><dd><code id="input-hash">Unavailable</code></dd></dl><p class="muted">The checksum identifies the saved original bytes. It does not establish image quality.</p><p id="comparison-note" class="muted" hidden></p><p class="muted">The original picture plays from a separate copy whose timeline starts at zero. Its compressed video frames are unchanged, but its file bytes differ. The source recording stays unchanged; the original file size and checksum shown on this page describe that source recording.</p></details>
+  <details><summary>About this run and comparison method</summary><dl><dt>Created</dt><dd id="created">Unavailable</dd><dt>Encoder / decoder</dt><dd id="ffmpeg-version">Unavailable</dd><dt>Original file SHA-256</dt><dd><code id="input-hash">Unavailable</code></dd></dl><p class="muted">The checksum identifies the saved original bytes. It does not establish image quality.</p><p id="comparison-note" class="muted" hidden></p><p id="source-copy-note" class="muted">The source picture plays from a separate copy whose timeline starts at zero. Its compressed video frames are unchanged, but its file bytes differ. The original file size and checksum describe the preserved source video.</p></details>
 </main>
 </body>
 </html>

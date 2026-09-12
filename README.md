@@ -108,6 +108,8 @@ Use `./lab recordings check --limit 20` to check a batch of completed local reco
 
 To compare compression on one completed recording, use the separate [saved-video comparison tool](docs/compression-comparison.md). It creates two 20 fps candidates and compares file size, picture similarity and processing cost without changing live settings or the original recording.
 
+For repeatable compression stress tests, the same tool offers `--test-scene fast-motion`, `fine-detail` or `dim-noise`. These are clearly labelled generated scenes; [the scene guide](docs/compression-comparison.md#repeatable-generated-scenes) explains their limits and how to capture the missing real-camera cases.
+
 ## Optional R2 archive
 
 R2 is disabled in a fresh installation and is enabled in this configured workspace. Run `./lab archive-config` to create or locate the private configuration, then follow [R2 setup](docs/r2-setup.md). The uploader processes one recording at a time, retains source identity, resumes pending work after restart and confirms uploads before marking them archived. It does not delete local files.

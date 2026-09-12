@@ -1,6 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mediaChoice, fileSize, sizeChange, similarity, clampTime} from './page.mjs';
+import {reportProvenance, mediaChoice, fileSize, sizeChange, similarity, clampTime} from './page.mjs';
+
+test('old reports without scene metadata retain recording provenance', () => {
+  assert.deepEqual(reportProvenance({input: {file: 'original.mp4'}}), {kind: 'recording'});
+});
+
+test('only known scenes receive generated provenance and their text stays data', () => {
+  for (const id of ['fast-motion', 'fine-detail', 'dim-noise']) {
+    const title = '<b>Generated title</b>', note = 'Keep this note as text <script>not code</script>.';
+    assert.deepEqual(reportProvenance({test_scene: {id, title, note}}), {kind: 'generated', id, title, note});
+  }
+});
+
+test('unknown or incomplete scene metadata cannot fall back to a camera recording', () => {
+  const scene = {id: 'fast-motion', title: 'Generated motion', note: 'A generated scene.'};
+  for (const value of [null, undefined, [], 'fast-motion', {}, {...scene, id: 'camera'}, {...scene, id: 'https://example.invalid/fast-motion'}, {...scene, title: ''}, {...scene, title: 'x'.repeat(161)}, {...scene, note: null}, {...scene, note: 'x'.repeat(2001)}]) {
+    assert.throws(() => reportProvenance({test_scene: value}), /invalid test scene provenance/);
+  }
+});
 
 test('media paths are a fixed local allowlist, independent of report labels', () => {
   assert.equal(mediaChoice({file:'detail-20.mp4',name:'untrusted label'}).url, '/detail-20.mp4');

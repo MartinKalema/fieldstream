@@ -4,6 +4,19 @@ const allowedFiles = new Map([
   ['detail-20.mp4', {url: '/detail-20.mp4', label: 'More detail · 20 fps'}],
   ['small-20.mp4', {url: '/small-20.mp4', label: 'Smaller picture · 20 fps'}],
 ]);
+const allowedScenes = new Set(['fast-motion', 'fine-detail', 'dim-noise']);
+
+export function reportProvenance(report) {
+  if (!report || typeof report !== 'object' || Array.isArray(report)) throw new Error('report shape');
+  if (!Object.prototype.hasOwnProperty.call(report, 'test_scene')) return {kind: 'recording'};
+  const scene = report.test_scene;
+  if (!scene || typeof scene !== 'object' || Array.isArray(scene) || !allowedScenes.has(scene.id) ||
+      typeof scene.title !== 'string' || !scene.title.trim() || scene.title.length > 160 ||
+      typeof scene.note !== 'string' || !scene.note.trim() || scene.note.length > 2000) {
+    throw new Error('invalid test scene provenance');
+  }
+  return {kind: 'generated', id: scene.id, title: scene.title, note: scene.note};
+}
 
 export function mediaChoice(variant) {
   if (!variant || typeof variant.file !== 'string') return null;
@@ -46,6 +59,27 @@ export function initializePage(document) {
   function status(message, error = false) {
     $('status').textContent = message;
     $('status').classList.toggle('error', error);
+  }
+
+  function showProvenance(provenance) {
+    const generated = provenance.kind === 'generated';
+    document.title = generated ? 'Generated scene comparison' : 'Recorded video comparison';
+    $('provenance-label').textContent = generated ? 'Generated test scene' : 'Local recording experiment';
+    $('page-title').textContent = generated ? provenance.title : 'How much smaller can this video be?';
+    $('introduction').textContent = generated
+      ? 'Compare this generated source with two versions made at 20 frames per second. Look at small details and movement, then compare the file size and the work needed to create each version.'
+      : 'Compare the original recording with two versions made at 20 frames per second. Look at small details and movement, then compare the file size and the work needed to create each version.';
+    $('provenance-notice').textContent = generated
+      ? 'This footage was generated on this computer. Results describe this test scene. This page does not change the current live feed, camera settings or saved camera recordings.'
+      : 'This page plays saved test files. It does not change the current live feed, camera settings or original recording.';
+    $('scene-note').textContent = generated ? provenance.note : '';
+    $('scene-note').hidden = !generated;
+    $('original-title').textContent = generated ? 'Generated source picture' : 'Original picture';
+    original.setAttribute('aria-label', generated ? 'Generated source picture with playback starting at zero' : 'Original picture with playback starting at zero');
+    encoded.setAttribute('aria-label', generated ? 'Selected encoded test scene' : 'Selected encoded recording');
+    $('source-copy-note').textContent = generated
+      ? 'The generated source picture plays from a separate copy whose timeline starts at zero. Its compressed video frames are unchanged, but its file bytes differ. The generated source file stays unchanged; the original file size and checksum shown on this page describe that source file.'
+      : 'The original picture plays from a separate copy whose timeline starts at zero. Its compressed video frames are unchanged, but its file bytes differ. The source recording stays unchanged; the original file size and checksum shown on this page describe that source recording.';
   }
 
   function addCell(row, text, detail = '', heading = false) {
@@ -153,15 +187,17 @@ export function initializePage(document) {
       if (!response.ok) throw new Error('report response');
       report = await response.json();
       if (!report || typeof report.input !== 'object' || !report.input || !Array.isArray(report.variants) || report.variants.length > 8) throw new Error('report shape');
+      const provenance = reportProvenance(report);
       choices = report.variants.map(variant => {
         const media = mediaChoice(variant);
         return media ? {...media, variant} : null;
       }).filter(Boolean);
       if (choices.length === 0) throw new Error('no supported candidate');
+      showProvenance(provenance);
       $('results-body').replaceChildren();
-      addRow(report.input, 'Original recording', true);
+      addRow(report.input, provenance.kind === 'generated' ? 'Generated source' : 'Original recording', true);
       for (const choice of choices) addRow(choice.variant, choice.label, false);
-      $('clip-description').textContent = `Original: ${seconds(report.input.duration)} · ${dimension(report.input)} · ${frameRate(report.input.fps)}. Both alternatives target 20 fps; compare their frame counts and file sizes below.`;
+      $('clip-description').textContent = `${provenance.kind === 'generated' ? 'Generated source' : 'Original'}: ${seconds(report.input.duration)} · ${dimension(report.input)} · ${frameRate(report.input.fps)}. Both alternatives target 20 fps; compare their frame counts and file sizes below.`;
       $('original-description').textContent = `${dimension(report.input)} · ${frameRate(report.input.fps)} · ${fileSize(report.input.bytes)}`;
       $('candidate').replaceChildren();
       choices.forEach((choice, index) => {
@@ -177,7 +213,9 @@ export function initializePage(document) {
       // Only this verified playback copy has its timeline normalized to zero.
       // Size and checksum values above still describe the preserved input file.
       original.src = '/playback.mp4'; original.load(); selectCandidate(0);
-      status('Report loaded. The saved videos are ready to inspect once both files load.');
+      status(provenance.kind === 'generated'
+        ? 'Generated scene report loaded. These saved test videos are ready to inspect once both files load.'
+        : 'Report loaded. The saved videos are ready to inspect once both files load.');
     } catch {
       status('The local comparison report could not be loaded. Check that the comparison command finished and its viewer is still running, then reload this page.', true);
     } finally { clearTimeout(timeout); }

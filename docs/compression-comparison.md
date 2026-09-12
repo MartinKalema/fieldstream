@@ -1,6 +1,6 @@
 # Compare compression on a saved recording
 
-`qualitycheck` makes two smaller-video candidates from one completed recording. It shows their actual file sizes, picture similarity and processing cost, with a local page for watching the differences. It preserves the received recording and does not change camera settings, live forwarding profiles or upload history.
+`qualitycheck` makes two smaller-video candidates from one completed recording or a fixed generated test scene. It shows their actual file sizes, picture similarity and processing cost, with a local page for watching the differences. It preserves received recordings and does not change camera settings, live forwarding profiles or upload history.
 
 The saved recording is already compressed video that reached this computer. It is the reference for this experiment, not an uncompressed camera original. No measured compression results are claimed in this guide.
 
@@ -28,9 +28,45 @@ To reopen a completed comparison without encoding it again:
 go run ./cmd/qualitycheck --report-dir '/path/to/field-video-lab/reports/quality-run-EXAMPLE'
 ```
 
-Use the actual folder printed by the earlier run. Choose either `--recording` or `--report-dir`. Adding `--no-serve` when reopening validates the files, prints their saved summary and exits. Stop the page with Ctrl+C; the report files remain available.
+Use the actual folder printed by the earlier run. Choose exactly one of `--recording`, `--report-dir` or `--test-scene`. Adding `--no-serve` when reopening validates the files, prints their saved summary and exits. Stop the page with Ctrl+C; the report files remain available.
 
 The diagnostic does not start or stop media services. It does use CPU and disk, so it can compete with ongoing recording and uploads. One comparison can encode at a time per project; viewing a completed report releases that lock.
+
+## Repeatable generated scenes
+
+Use these when a camera is unavailable or when you need the same pictures on every run:
+
+```sh
+go run ./cmd/qualitycheck --test-scene fast-motion --no-serve
+go run ./cmd/qualitycheck --test-scene fine-detail --no-serve
+go run ./cmd/qualitycheck --test-scene dim-noise --no-serve
+```
+
+Each command creates its own private report folder. Reopen one with `--report-dir`, or omit `--no-serve` to open its viewer immediately. An occupied port is reported as an error; choose another with `--listen`.
+
+| Scene | What it tests | What it cannot establish |
+| --- | --- | --- |
+| `fast-motion` | Moving shapes and a fast, repeating pan | Camera motion blur, network delay or the smoothness lost by removing frames |
+| `fine-detail` | A stationary chart with thin lines | Real text readability or object recognition |
+| `dim-noise` | Dark moving shapes with changing speckles | Real camera performance in low light |
+
+Every source has 150 pictures at 1280 × 720 and 30 fps, lasting five seconds. The source is encoded as H.264 with the fixed CRF 12 setting before comparison. CRF is the encoder's quality setting; it is not a fixed data rate. These generated source files are already compressed, so their percentage size savings should not be treated as predictions for a real camera's files.
+
+The report saves the fixed filter recipe, source-encoding settings, FFmpeg version and checksums. Noise seeds fix the random sequence. Tests check repeatable decoded pictures on the installed FFmpeg build; identical output across different tool versions is not promised. Generation accepts only the three built-in names, never a user-supplied filter, file or network address. It uses the existing job lock, private output folder and processing limits, and never enters generated clips into the recording catalog or R2 queue.
+
+Generated reports are clearly labelled in the CLI and browser. Reopening requires a supported scene recipe and matching files; an unknown or incomplete scene label is rejected. The hashes identify bytes but do not authenticate a report's author.
+
+Noise needs careful interpretation: SSIM also rewards preserving the added speckles. Smoothing them can lower SSIM even when a viewer prefers the smoother picture. Examine the video as well as the number. Neither a generated scene nor a high average score replaces real-camera testing.
+
+## Capture the missing real-camera cases
+
+Keep the camera's resolution, frame rate and data rate unchanged between these trials. In Larix, broadcast each scene for about 20 seconds so several complete recording pieces are available:
+
+1. Hold the camera still on small printed text in good light.
+2. Record a hand or another nearby object moving quickly across the same scene.
+3. Reduce the room lighting and repeat the movement.
+
+Use a completed piece from the middle of each scene, after the camera has adjusted its exposure. Record which scene each filename represents, and check it with the recording-health command before comparing. Evaluate text readability and movement in the original first: further compression cannot restore detail the camera never captured. Repeat on several scenes before changing a live profile.
 
 ## What it creates
 
@@ -104,7 +140,7 @@ go test ./cmd/qualitycheck -count=1 -v
 node --test cmd/qualitycheck/page_test.mjs
 ```
 
-The real-media cases use generated clips in temporary folders and skip explicitly if the media tools are missing. They check unchanged source bytes, output dimensions and frame counts, full reference coverage, an identical-picture control, incorrect timing, different pictures and truncated inputs. Other tests cover catalog/history preservation, older schemas, missing or changed files, path escapes, report completeness, checksums and local HTTP access. Page tests cover safe media paths, size increases, similarity labels and shared playback bounds.
+The real-media cases use generated clips in temporary folders and skip explicitly if the media tools are missing. They check unchanged source bytes, output dimensions and frame counts, full reference coverage, an identical-picture control, incorrect timing, different pictures and truncated inputs. Scene tests check all three fixed recipes, repeatable seeded pictures, overwrite protection and an end-to-end run that creates no recording catalog or recording directory. Other tests cover catalog/history preservation, older schemas, missing or changed files, path escapes, report completeness, scene provenance, checksums and local HTTP access. Page tests cover safe media paths, size increases, similarity labels, generated-scene labels and shared playback bounds.
 
 For Go changes, also run the repository checks:
 
