@@ -110,6 +110,8 @@ R2 is disabled in a fresh installation and is enabled in this configured workspa
 
 Its default fixed limit is 1 megabit per second. A continuously recorded 2-megabit camera will create a backlog; multiple cameras increase that rate. The limit does not automatically adapt to live-video needs. The successful R2 check verifies the basic upload and confirmation path, not every interruption or recovery case.
 
+The [archive crash-recovery checks](docs/archive-recovery.md) kill an isolated uploader during a partial transfer, after the store saves the file without replying, and after confirmation arrives before the database saves success. A fresh uploader must recover the same recording. These tests use a local store fixture and can run while the camera is live.
+
 ## Test without camera hardware
 
 ```sh

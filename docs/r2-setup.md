@@ -68,6 +68,8 @@ The checksum confirms the bytes that were saved; it does not prove every video f
 
 Automated local tests exercise signed upload requests, checksum checks, interrupted acknowledgements, retries, missing files and cancellation. On 11 September 2026, a real 1,252,488-byte generated video was uploaded to your private `field-video-lab` bucket using the supplied credentials. The uploader confirmed its saved size and checksum metadata before marking it archived. The result is recorded in `reports/latest-r2-check.json`; the test used a separate catalog and object prefix.
 
+The [process-crash recovery tests](archive-recovery.md) use a local HTTP store and force the uploader to die at three observed boundaries. Another process must recover the unfinished database row, send the same bytes to the same object name, and confirm success. A further restart must preserve that result without another request. These tests exercise the real SDK and SQLite without contacting R2.
+
 The normal lab also saved 16 generated recording pieces. All passed a complete decoding check after orderly shutdown. After restarting the controller, the uploader resumed the pending work and confirmed all 16 in R2, leaving no pending recordings. See `reports/browser-recording-check.json` and `reports/archive-resume-check.json`.
 
 These checks cover real uploads and pending-work recovery after a controller restart. They do not yet prove recovery during an actual internet outage or playback from the archive. The general Cloudflare administration token was used for bucket setup and was removed from the local setup file afterward; the running uploader uses only the R2 access key and secret.
