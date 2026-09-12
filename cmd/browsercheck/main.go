@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"errors"
@@ -17,6 +18,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"fieldvideolab/internal/viewer"
 )
 
 //go:embed assets
@@ -62,7 +65,15 @@ func handler(port int, sourceIDs []string, projectRoot string) http.Handler {
 			return
 		}
 		switch r.URL.Path {
-		case "/", "/app.mjs", "/metrics.mjs", "/style.css", "/reader.js", "/mediamtx-LICENSE.txt":
+		case "/reader.js":
+			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+			http.ServeContent(w, r, "reader.js", time.Time{}, bytes.NewReader(viewer.ReaderJS))
+			return
+		case "/mediamtx-LICENSE.txt":
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			http.ServeContent(w, r, "mediamtx-LICENSE.txt", time.Time{}, bytes.NewReader(viewer.ReaderLicense))
+			return
+		case "/", "/app.mjs", "/metrics.mjs", "/style.css":
 		default:
 			http.NotFound(w, r)
 			return

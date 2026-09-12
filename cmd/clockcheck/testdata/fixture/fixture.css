@@ -1,0 +1,5 @@
+.fixture-toolbar { border: 5px solid #ffc107; background: #332600; color: #fff6cc; padding: 14px; margin: 16px; font-family: system-ui, sans-serif; }
+.fixture-toolbar strong { display: block; font-size: 1.1rem; }
+.fixture-toolbar p { margin: 8px 0; }
+.fixture-toolbar button { background: #ffd43b; color: #211800; border: 2px solid #fff1ae; padding: 8px 10px; margin: 4px; font-weight: 700; cursor: pointer; }
+.fixture-toolbar pre { white-space: pre-wrap; color: #fff6cc; margin: 10px 0 0; }

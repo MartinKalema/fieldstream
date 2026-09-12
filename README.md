@@ -38,6 +38,8 @@ Read [the source setup guide](docs/source-setup.md) for compatible senders and c
 
 Use [the diagnostic tools guide](docs/developer-tools.md) to run the local-versus-forwarded clock page, compare browser buffering, or generate private Larix connection QR codes from this checkout.
 
+The clock page also shows [picture-progress warnings](docs/picture-stall-warning.md) for each player. A connection can remain open while its picture stops advancing. These warnings check browser playback; use the filmed clock to establish how old the camera picture is.
+
 ## Add another device
 
 Register a separate source for each device while the lab is stopped. The example below applies when `camera-02` does not already exist; use `source list` first. This workspace already has both example sources.

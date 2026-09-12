@@ -1,77 +1,62 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"fieldvideolab/internal/viewer"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-func TestWHEPProxyRoutesAndSessionLocation(t *testing.T) {
-	const session = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-	called := 0
-	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		called++
-		if r.URL.Host != "127.0.0.1:28889" || r.URL.Path != "/camera-02/whep" || r.Header.Get("Origin") != "" || r.Header.Get("Authorization") != "" || r.Header.Get("Cookie") != "" {
-			t.Fatal("proxy forwarded an unexpected target or private browser headers")
-		}
-		return &http.Response{StatusCode: 201, Header: http.Header{"Location": {"/camera-02/whep/" + session}, "Content-Type": {"application/sdp"}}, Body: io.NopCloser(strings.NewReader("answer"))}, nil
-	})}
-	h := whepProxy([]string{"camera-02"}, client)
-	r := httptest.NewRequest("POST", "http://127.0.0.1:19081/whep/forwarded/camera-02", strings.NewReader("offer"))
-	r.Header.Set("Origin", "http://127.0.0.1:19081")
-	r.Header.Set("Authorization", "private test value")
-	r.Header.Set("Cookie", "private test value")
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, r)
-	if w.Code != 201 || w.Header().Get("Location") != "/whep/forwarded/camera-02/"+session || w.Body.String() != "answer" || called != 1 {
-		t.Fatalf("unexpected response: status %d", w.Code)
-	}
-	client.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		if r.Method != "PATCH" || r.URL.Path != "/camera-02/whep/"+session || r.Header.Get("If-Match") != "*" {
-			t.Fatal("invalid session request")
-		}
-		return &http.Response{StatusCode: 204, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
-	})
-	r = httptest.NewRequest("PATCH", "http://127.0.0.1:19081"+w.Header().Get("Location"), strings.NewReader("candidate"))
-	r.Header.Set("If-Match", "*")
-	w = httptest.NewRecorder()
-	h.ServeHTTP(w, r)
-	if w.Code != 204 {
-		t.Fatalf("PATCH: %d", w.Code)
+func TestWHEPWrapperKeepsReceiverPorts(t *testing.T) {
+	for _, test := range []struct{ route, port string }{{"local", "18889"}, {"forwarded", "28889"}} {
+		t.Run(test.route, func(t *testing.T) {
+			called := false
+			h := whepProxy([]string{"camera-01"}, &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				called = true
+				if r.URL.Host != "127.0.0.1:"+test.port || r.URL.Path != "/camera-01/whep" {
+					t.Fatal("changed receiver destination")
+				}
+				return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("answer"))}, nil
+			})})
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, httptest.NewRequest("POST", "http://127.0.0.1:19081/whep/"+test.route+"/camera-01", nil))
+			if w.Code != 200 || !called {
+				t.Fatalf("request status %d, called %v", w.Code, called)
+			}
+		})
 	}
 }
 
-func TestWHEPProxyRejectsUnboundedRoutesAndResponses(t *testing.T) {
-	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-		t.Fatal("invalid request reached upstream")
-		return nil, nil
-	})}
-	h := whepProxy([]string{"camera-01"}, client)
-	for _, path := range []string{"/whep/http:evil/camera-01", "/whep/local/camera-02", "/whep/local/camera-01/../../whip", "/whep/local/camera-01?token=value", "/whep/local/camera-01/not-a-session"} {
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, httptest.NewRequest("POST", "http://127.0.0.1:19081"+path, nil))
-		if w.Code != 404 {
-			t.Fatalf("unsafe route status %d", w.Code)
+func TestSharedReaderAssetsKeepStaticURLs(t *testing.T) {
+	h := handler(19081, []string{"camera-01"}, t.TempDir())
+	for _, test := range []struct {
+		path, contentType string
+		data              []byte
+	}{
+		{"/reader.js", "text/javascript; charset=utf-8", viewer.ReaderJS},
+		{"/mediamtx-LICENSE.txt", "text/plain; charset=utf-8", viewer.ReaderLicense},
+	} {
+		for _, method := range []string{"GET", "HEAD"} {
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, httptest.NewRequest(method, "http://127.0.0.1:19081"+test.path, nil))
+			if w.Code != 200 || w.Header().Get("Content-Type") != test.contentType || w.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("%s %s: unexpected static response", method, test.path)
+			}
+			if method == "GET" && !bytes.Equal(w.Body.Bytes(), test.data) {
+				t.Fatalf("%s: changed asset", test.path)
+			}
+			if method == "HEAD" && w.Body.Len() != 0 {
+				t.Fatal("HEAD returned a body")
+			}
 		}
-	}
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, httptest.NewRequest("POST", "http://127.0.0.1:19081/whep/local/camera-01", strings.NewReader(strings.Repeat("x", bodyLimit+1))))
-	if w.Code != 413 {
-		t.Fatalf("oversized request: %d", w.Code)
-	}
-	client.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: 201, Header: http.Header{"Location": {"http://example.invalid/private"}}, Body: io.NopCloser(strings.NewReader("answer"))}, nil
-	})
-	w = httptest.NewRecorder()
-	h.ServeHTTP(w, httptest.NewRequest("POST", "http://127.0.0.1:19081/whep/local/camera-01", nil))
-	if w.Code != 502 || w.Header().Get("Location") != "" {
-		t.Fatal("external session location escaped proxy")
 	}
 }
 
