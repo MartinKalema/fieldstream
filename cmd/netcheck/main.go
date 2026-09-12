@@ -80,103 +80,45 @@ type quality struct {
 	Times                       map[int]float64 `json:"-"`
 }
 
-func score(c capture, reference map[string]int) quality {
-	q := quality{Expected: lastScored - firstScored, Times: map[int]float64{}}
-	offsets := map[int]int{}
-	for _, f := range c.Frames {
-		if i, ok := reference[f.Hash]; ok {
-			offsets[i-int(math.Round(float64(f.PTS)*c.Timebase*fps))]++
-		}
-	}
-	best := 0
-	for o, n := range offsets {
-		if n > best || (n == best && o < q.Offset) {
-			best = n
-			q.Offset = o
-		}
-	}
-	q.MappingConsistent = len(offsets) == 1 && best > 0
-	seen := map[int]int{}
-	bad := map[int]bool{}
-	var gaps []float64
-	var previous, firstArrival float64
-	firstIndex := -1
-	for _, f := range c.Frames {
-		i := int(math.Round(float64(f.PTS)*c.Timebase*fps)) + q.Offset
-		source, exact := reference[f.Hash]
-		if exact {
-			i = source // Unique pixel identity is authoritative even if PTS mapping fails.
-		} else if !q.MappingConsistent {
-			q.UnlocatedNonmatchingOutputs++
-			continue
-		}
-		if i < firstScored || i >= lastScored {
-			continue
-		}
-		q.ScoredOutputs++
-		seen[i]++
-		if seen[i] > 1 {
-			q.DuplicateOutputs++
-		}
-		if exact {
-			if _, ok := q.Times[i]; !ok {
-				q.Times[i] = f.ArrivalMS
-			}
-		} else {
-			bad[i] = true
-		}
-		if firstIndex < 0 {
-			firstIndex = i
-			firstArrival = f.ArrivalMS
-		} else {
-			gaps = append(gaps, f.ArrivalMS-previous)
-		}
-		drift := (f.ArrivalMS - firstArrival) - float64(i-firstIndex)*1000/fps
-		q.MaxScheduleDriftMS = math.Max(q.MaxScheduleDriftMS, math.Abs(drift))
-		previous = f.ArrivalMS
-	}
-	run := 0
-	var intactTimes []float64
-	for i := firstScored; i < lastScored; i++ {
-		if _, ok := q.Times[i]; ok {
-			q.Exact++
-			run = 0
-			intactTimes = append(intactTimes, q.Times[i])
-		} else if bad[i] {
-			q.Nonmatching++
-			run++
-		} else {
-			q.Missing++
-			run++
-		}
-		q.LongestNonIntactRunFrames = max(q.LongestNonIntactRunFrames, run)
-	}
-	sort.Float64s(intactTimes)
-	var intactGaps []float64
-	for i := 1; i < len(intactTimes); i++ {
-		intactGaps = append(intactGaps, intactTimes[i]-intactTimes[i-1])
-	}
-	q.IntactArrivalGapsMS = dist(intactGaps)
-	q.LongestNonIntactRunMS = float64(q.LongestNonIntactRunFrames) * 1000 / fps
-	q.IntactFraction = float64(q.Exact) / float64(q.Expected)
-	q.ArrivalGapsMS = dist(gaps)
-	return q
-}
-
 type profile struct {
-	Name       string  `json:"name"`
-	DelayMS    int     `json:"one_way_delay_ms"`
-	JitterMS   int     `json:"uniform_jitter_plus_minus_ms"`
-	Loss       float64 `json:"independent_packet_loss"`
-	BlackoutMS int     `json:"bidirectional_blackout_ms"`
+	Name          string  `json:"name"`
+	DelayMS       int     `json:"one_way_delay_ms"`
+	JitterMS      int     `json:"uniform_jitter_plus_minus_ms"`
+	Loss          float64 `json:"independent_packet_loss"`
+	BlackoutMS    int     `json:"bidirectional_blackout_ms"`
+	BandwidthKbps int     `json:"bandwidth_kbps_each_direction,omitempty"`
+	QueueBytes    int     `json:"bandwidth_queue_bytes_each_direction,omitempty"`
 }
 type proxyStats struct {
-	Received      int64 `json:"received_datagrams"`
-	Forwarded     int64 `json:"forwarded_datagrams"`
-	RandomDrops   int64 `json:"random_drops"`
-	BlackoutDrops int64 `json:"blackout_drops"`
-	ResourceDrops int64 `json:"resource_drops"`
-	MaxQueued     int   `json:"max_queued_datagrams"`
+	Received       int64                  `json:"received_datagrams"`
+	Forwarded      int64                  `json:"forwarded_datagrams"`
+	RandomDrops    int64                  `json:"random_drops"`
+	BlackoutDrops  int64                  `json:"blackout_drops"`
+	BandwidthDrops int64                  `json:"bandwidth_drops"`
+	ResourceDrops  int64                  `json:"resource_drops"`
+	MaxQueued      int                    `json:"max_queued_datagrams"`
+	Directions     [2]proxyDirectionStats `json:"directions"`
+}
+
+type proxyDirectionStats struct {
+	Direction                string  `json:"direction"`
+	Received                 int64   `json:"received_datagrams"`
+	ReceivedBytes            int64   `json:"received_payload_bytes"`
+	Forwarded                int64   `json:"forwarded_datagrams"`
+	ForwardedBytes           int64   `json:"forwarded_payload_bytes"`
+	BandwidthDrops           int64   `json:"bandwidth_drops"`
+	BandwidthDropBytes       int64   `json:"bandwidth_drop_payload_bytes"`
+	MaxQueuedBytes           int     `json:"max_bandwidth_queued_payload_bytes"`
+	ShutdownQueuedBytes      int     `json:"shutdown_bandwidth_queued_payload_bytes"`
+	QueueResidenceTotalMS    float64 `json:"queue_residence_total_ms"`
+	QueueResidenceMaxMS      float64 `json:"queue_residence_max_ms"`
+	SerializationCompletions int64   `json:"serialization_completions"`
+	TimerLatenessMaxMS       float64 `json:"timer_lateness_max_ms"`
+	TimerLatenessTotalMS     float64 `json:"timer_lateness_total_ms"`
+	ForwardingWindowMS       float64 `json:"forwarding_window_ms"`
+	ForwardedPayloadKbps     float64 `json:"forwarded_payload_kbps"`
+	firstReceivedAt          time.Time
+	lastForwardedAt          time.Time
 }
 type datagram struct {
 	data      []byte
@@ -200,19 +142,34 @@ type proxy struct {
 }
 
 func startProxy(ctx context.Context, destination *net.UDPAddr, p profile, seed int64) (*proxy, error) {
+	bandwidth, err := newBandwidthQueue(p.BandwidthKbps, p.QueueBytes)
+	if err != nil {
+		return nil, err
+	}
+	if p.DelayMS < 0 || p.DelayMS > 60000 || p.JitterMS < 0 || p.JitterMS > 60000 || p.BlackoutMS < 0 || p.BlackoutMS > 60000 || math.IsNaN(p.Loss) || p.Loss < 0 || p.Loss > 1 {
+		return nil, errors.New("invalid proxy delay, jitter, loss or outage setting")
+	}
 	c, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
 		return nil, err
 	}
 	x := &proxy{conn: c, done: make(chan struct{})}
+	x.stats.Directions[0].Direction = "source_to_receiver"
+	x.stats.Directions[1].Direction = "receiver_to_source"
 	incoming := make(chan datagram, 512)
+	readerDone := make(chan struct{})
 	go func() {
+		defer close(readerDone)
 		defer close(incoming)
 		buf := make([]byte, 2048)
 		for {
-			n, a, e := c.ReadFromUDP(buf)
+			n, _, flags, a, e := c.ReadMsgUDP(buf, nil)
 			if e != nil {
 				return
+			}
+			if flags&syscall.MSG_TRUNC != 0 {
+				x.overflow.Add(1)
+				continue
 			}
 			b := append([]byte(nil), buf[:n]...)
 			select {
@@ -223,12 +180,33 @@ func startProxy(ctx context.Context, destination *net.UDPAddr, p profile, seed i
 		}
 	}()
 	go func() {
-		defer close(x.done)
-		defer c.Close()
+		defer func() {
+			c.Close()
+			<-readerDone
+			if bandwidth != nil {
+				for i := range bandwidth.directions {
+					x.stats.Directions[i].ShutdownQueuedBytes = bandwidth.directions[i].bytes
+				}
+			}
+			close(x.done)
+		}()
 		r := [2]*prng.Rand{prng.New(prng.NewSource(seed)), prng.New(prng.NewSource(seed + 1_000_003))}
 		var caller *net.UDPAddr
 		var mediaStart time.Time
 		q := queue{}
+		forward := func(d datagram) {
+			// A stuck socket cannot indefinitely delay cancellation or cleanup.
+			_ = c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+			if _, e := c.WriteToUDP(d.data, d.addr); e == nil {
+				x.stats.Forwarded++
+				s := &x.stats.Directions[d.direction]
+				s.Forwarded++
+				s.ForwardedBytes += int64(len(d.data))
+				s.lastForwardedAt = time.Now()
+			} else {
+				x.stats.ResourceDrops++
+			}
+		}
 		timer := time.NewTimer(time.Hour)
 		defer timer.Stop()
 		for {
@@ -239,7 +217,12 @@ func startProxy(ctx context.Context, destination *net.UDPAddr, p profile, seed i
 				}
 			}
 			var tick <-chan time.Time
-			if len(q) > 0 {
+			if bandwidth != nil {
+				if due, ok := bandwidth.nextDue(); ok {
+					timer.Reset(max(time.Until(due), 0))
+					tick = timer.C
+				}
+			} else if len(q) > 0 {
 				timer.Reset(max(time.Until(q[0].at), 0))
 				tick = timer.C
 			}
@@ -262,6 +245,13 @@ func startProxy(ctx context.Context, destination *net.UDPAddr, p profile, seed i
 				} else {
 					caller = d.addr
 				}
+				d.direction = dir
+				s := &x.stats.Directions[dir]
+				s.Received++
+				s.ReceivedBytes += int64(len(d.data))
+				if s.firstReceivedAt.IsZero() {
+					s.firstReceivedAt = d.at
+				}
 				if dir == 0 && len(d.data) >= 16 && d.data[0]&0x80 == 0 && mediaStart.IsZero() {
 					mediaStart = d.at
 				}
@@ -280,20 +270,46 @@ func startProxy(ctx context.Context, destination *net.UDPAddr, p profile, seed i
 				}
 				d.at = d.at.Add(time.Duration(max(0, p.DelayMS+j)) * time.Millisecond)
 				d.addr = target
-				if len(q) >= 4096 {
+				if bandwidth != nil {
+					switch bandwidth.enqueue(d, time.Now()) {
+					case bandwidthRejected:
+						x.stats.BandwidthDrops++
+						s.BandwidthDrops++
+						s.BandwidthDropBytes += int64(len(d.data))
+					case bandwidthResourceRejected:
+						x.stats.ResourceDrops++
+					case bandwidthAdmitted:
+						s.MaxQueuedBytes = max(s.MaxQueuedBytes, bandwidth.directions[dir].bytes)
+						x.stats.MaxQueued = max(x.stats.MaxQueued, bandwidth.count)
+					}
+					continue
+				}
+				if len(q) >= maxProxyQueuedDatagrams {
 					x.stats.ResourceDrops++
 					continue
 				}
 				heap.Push(&q, d)
 				x.stats.MaxQueued = max(x.stats.MaxQueued, len(q))
 			case <-tick:
+				if bandwidth != nil {
+					for dir := range bandwidth.directions {
+						if delivery, ok := bandwidth.take(dir, time.Now()); ok {
+							s := &x.stats.Directions[dir]
+							residence := float64(delivery.residence) / float64(time.Millisecond)
+							s.QueueResidenceTotalMS += residence
+							s.QueueResidenceMaxMS = max(s.QueueResidenceMaxMS, residence)
+							s.TimerLatenessMaxMS = max(s.TimerLatenessMaxMS, float64(delivery.lateness)/float64(time.Millisecond))
+							s.TimerLatenessTotalMS += float64(delivery.lateness) / float64(time.Millisecond)
+							s.SerializationCompletions++
+							forward(delivery.datagram)
+							bandwidth.sent(dir, time.Now())
+						}
+					}
+					continue
+				}
 				for len(q) > 0 && !q[0].at.After(time.Now()) {
 					d := heap.Pop(&q).(datagram)
-					if _, e := c.WriteToUDP(d.data, d.addr); e == nil {
-						x.stats.Forwarded++
-					} else {
-						x.stats.ResourceDrops++
-					}
+					forward(d)
 				}
 			}
 		}
@@ -305,6 +321,13 @@ func (p *proxy) finish() proxyStats {
 	<-p.done
 	s := p.stats
 	s.ResourceDrops += p.overflow.Load()
+	for i := range s.Directions {
+		d := &s.Directions[i]
+		if !d.firstReceivedAt.IsZero() && d.lastForwardedAt.After(d.firstReceivedAt) {
+			d.ForwardingWindowMS = float64(d.lastForwardedAt.Sub(d.firstReceivedAt)) / float64(time.Millisecond)
+			d.ForwardedPayloadKbps = float64(d.ForwardedBytes) * 8 / d.ForwardingWindowMS
+		}
+	}
 	return s
 }
 
@@ -493,34 +516,44 @@ func ready(ctx context.Context, api int, paths bool, wanted ...string) error {
 }
 
 type trial struct {
-	RelayTransport             string       `json:"relay_transport,omitempty"`
-	PublisherSourceType        string       `json:"publisher_source_type,omitempty"`
-	Name                       string       `json:"name"`
-	LatencyMS                  int          `json:"impaired_latency_ms"`
-	ReferenceLatencyMS         int          `json:"reference_latency_ms"`
-	NegotiatedReferenceMS      int          `json:"negotiated_reference_ms"`
-	NegotiatedImpairedMS       int          `json:"negotiated_impaired_ms"`
-	Seed                       int64        `json:"seed"`
-	Profile                    profile      `json:"profile"`
-	Error                      string       `json:"error,omitempty"`
-	Reference                  quality      `json:"reference"`
-	Impaired                   quality      `json:"impaired"`
-	AddedDelayMS               distribution `json:"matched_frame_added_delay_ms"`
-	Timely250                  int          `json:"timely_250ms"`
-	Timely500                  int          `json:"timely_500ms"`
-	Timely250Fraction          float64      `json:"timely_250ms_fraction_all_expected"`
-	Timely500Fraction          float64      `json:"timely_500ms_fraction_all_expected"`
-	TimingConclusive           bool         `json:"timing_comparison_conclusive"`
-	Flags                      []string     `json:"flags"`
-	Proxy                      proxyStats   `json:"proxy"`
-	PublisherFIFOOverflowLines int          `json:"publisher_fifo_overflow_lines"`
+	Scoring                    scoringWindow `json:"scoring_window"`
+	RelayTransport             string        `json:"relay_transport,omitempty"`
+	PublisherSourceType        string        `json:"publisher_source_type,omitempty"`
+	Name                       string        `json:"name"`
+	LatencyMS                  int           `json:"impaired_latency_ms"`
+	ReferenceLatencyMS         int           `json:"reference_latency_ms"`
+	NegotiatedReferenceMS      int           `json:"negotiated_reference_ms"`
+	NegotiatedImpairedMS       int           `json:"negotiated_impaired_ms"`
+	Seed                       int64         `json:"seed"`
+	Profile                    profile       `json:"profile"`
+	Error                      string        `json:"error,omitempty"`
+	Reference                  quality       `json:"reference"`
+	Impaired                   quality       `json:"impaired"`
+	AddedDelayMS               distribution  `json:"matched_frame_added_delay_ms"`
+	Timely250                  int           `json:"timely_250ms"`
+	Timely500                  int           `json:"timely_500ms"`
+	Timely250Fraction          float64       `json:"timely_250ms_fraction_all_expected"`
+	Timely500Fraction          float64       `json:"timely_500ms_fraction_all_expected"`
+	TimingConclusive           bool          `json:"timing_comparison_conclusive"`
+	Flags                      []string      `json:"flags"`
+	Proxy                      proxyStats    `json:"proxy"`
+	PublisherFIFOOverflowLines int           `json:"publisher_fifo_overflow_lines"`
 }
 
 func decoderArgs(rtsp int, name string) []string {
 	return []string{"-hide_banner", "-loglevel", "warning", "-nostdin", "-threads:v", "1", "-rtsp_transport", "tcp", "-analyzeduration", "100000", "-probesize", "100000", "-i", fmt.Sprintf("rtsp://127.0.0.1:%d/%s", rtsp, name), "-map", "0:v:0", "-an", "-c:v", "rawvideo", "-pix_fmt", "yuv420p", "-threads:v", "1", "-fps_mode:v", "passthrough", "-f", "framemd5", "-flush_packets", "1", "pipe:1"}
 }
-func runTrial(parent context.Context, dir, ffmpeg, mtx, clip string, p profile, latency int, seed int64, reference map[string]int) (out trial) {
+func runTrial(parent context.Context, dir, ffmpeg, mtx, clip string, p profile, latency int, seed int64, reference map[string]int, windows ...scoringWindow) (out trial) {
 	out = trial{Name: fmt.Sprintf("%s-%dms-seed%d", p.Name, latency, seed), LatencyMS: latency, ReferenceLatencyMS: 120, Seed: seed, Profile: p}
+	w := scoringWindow{FPS: fps, First: firstScored, Last: lastScored}
+	if len(windows) > 0 {
+		w = windows[0]
+	}
+	out.Scoring = w
+	// Keep the planned denominator even if setup fails before decoding starts.
+	// Error/flags distinguish unavailable observations from measured losses.
+	out.Reference.Expected = w.Last - w.First
+	out.Impaired.Expected = w.Last - w.First
 	forward := isRelayTrial(p)
 	if forward {
 		out.Name = fmt.Sprintf("%s-repeat%d", p.Name, seed)
@@ -697,8 +730,8 @@ func runTrial(parent context.Context, dir, ffmpeg, mtx, clip string, p profile, 
 	out.Proxy = x.finish()
 	_ = writeJSON(filepath.Join(dir, "reference-frames.json"), rc)
 	_ = writeJSON(filepath.Join(dir, "impaired-frames.json"), ic)
-	out.Reference = score(rc, reference)
-	out.Impaired = score(ic, reference)
+	out.Reference = scoreWindow(rc, reference, w)
+	out.Impaired = scoreWindow(ic, reference, w)
 	var delays []float64
 	for i, at := range out.Impaired.Times {
 		if baseline, ok := out.Reference.Times[i]; ok {
@@ -713,8 +746,8 @@ func runTrial(parent context.Context, dir, ffmpeg, mtx, clip string, p profile, 
 		}
 	}
 	out.AddedDelayMS = dist(delays)
-	out.Timely250Fraction = float64(out.Timely250) / float64(lastScored-firstScored)
-	out.Timely500Fraction = float64(out.Timely500) / float64(lastScored-firstScored)
+	out.Timely250Fraction = float64(out.Timely250) / float64(w.Last-w.First)
+	out.Timely500Fraction = float64(out.Timely500) / float64(w.Last-w.First)
 	logs, _ := os.ReadFile(filepath.Join(dir, "publisher.log"))
 	for _, line := range strings.Split(string(logs), "\n") {
 		lower := strings.ToLower(line)
@@ -736,6 +769,13 @@ func runTrial(parent context.Context, dir, ffmpeg, mtx, clip string, p profile, 
 	}
 	if out.Proxy.ResourceDrops > 0 {
 		out.Flags = append(out.Flags, "bounded proxy queue or socket dropped packets")
+	}
+	if p.BandwidthKbps > 0 {
+		for _, direction := range out.Proxy.Directions {
+			if direction.TimerLatenessMaxMS > 25 {
+				out.Flags = append(out.Flags, direction.Direction+" bandwidth scheduler was over25ms late")
+			}
+		}
 	}
 	if out.PublisherFIFOOverflowLines > 0 {
 		out.Flags = append(out.Flags, "publisher FIFO overflow; source release may be affected")
@@ -764,7 +804,41 @@ func run() error {
 	seedsFlag := flag.String("seeds", "17,41", "comma-separated PRNG seeds")
 	latFlag := flag.String("latencies", "120,300", "impaired-side latency settings in milliseconds; experimental60/80 require a receiver with a lower minimum")
 	relayCompare := flag.Bool("relay-compare", false, "compare isolated copy forwarding via SRT120 and authenticated local RTSP/TCP")
+	bandwidthCompare := flag.Bool("bandwidth-compare", false, "compare generated encodings sent in real time over isolated bandwidth-limited connections")
+	rates := flag.String("rates", "0,1500,900", "bandwidth comparison only: UDP payload kilobits/second in each direction; 0 means unlimited")
+	queueBytes := flag.Int("queue-bytes", 32768, "bandwidth comparison only: finite packet queue bytes in each direction")
+	encodings := flag.String("encodings", "copy,detail20,small20", "bandwidth comparison only: comma-separated generated encodings")
 	flag.Parse()
+	if flag.NArg() != 0 {
+		return errors.New("unexpected positional arguments")
+	}
+	var bandwidthOptions bandwidthOptions
+	if *bandwidthCompare {
+		var conflicts []string
+		flag.Visit(func(f *flag.Flag) {
+			if f.Name == "latencies" || f.Name == "only" || f.Name == "relay-compare" {
+				conflicts = append(conflicts, "--"+f.Name)
+			}
+		})
+		if len(conflicts) > 0 {
+			return fmt.Errorf("bandwidth comparison uses a fixed 120 ms allowance; incompatible flags: %s", strings.Join(conflicts, ", "))
+		}
+		var err error
+		bandwidthOptions, err = parseBandwidthOptions(*rates, *queueBytes, *encodings, *seedsFlag)
+		if err != nil {
+			return err
+		}
+	} else {
+		var unexpected string
+		flag.Visit(func(f *flag.Flag) {
+			if f.Name == "rates" || f.Name == "queue-bytes" || f.Name == "encodings" {
+				unexpected = f.Name
+			}
+		})
+		if unexpected != "" {
+			return fmt.Errorf("--%s requires --bandwidth-compare", unexpected)
+		}
+	}
 	sourceFrames := 360
 	if *relayCompare {
 		firstScored, lastScored, sourceFrames = 180, 510, 540
@@ -785,6 +859,9 @@ func run() error {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	if *bandwidthCompare {
+		return runBandwidth(ctx, abs, *ffmpeg, *mtx, strings.TrimSpace(string(version)), bandwidthOptions)
+	}
 	dir := filepath.Join(abs, ".local", "diagnostics", "netcheck-"+time.Now().UTC().Format("20060102T150405.000Z"))
 	if e = os.MkdirAll(dir, 0700); e != nil {
 		return e

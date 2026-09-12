@@ -110,6 +110,8 @@ To compare compression on one completed recording, use the separate [saved-video
 
 For repeatable compression stress tests, the same tool offers `--test-scene fast-motion`, `fine-detail` or `dim-noise`. These are clearly labelled generated scenes; [the scene guide](docs/compression-comparison.md#repeatable-generated-scenes) explains their limits and how to capture the missing real-camera cases.
 
+To test delivery when a connection cannot carry the original video rate, use the separate [bandwidth comparison](docs/bandwidth-comparison.md). It sends the original and two smaller generated candidates through isolated rate limits, counts every expected picture, and measures added delay against a simultaneous clean reference. It does not change the live lab.
+
 ## Optional R2 archive
 
 R2 is disabled in a fresh installation and is enabled in this configured workspace. Run `./lab archive-config` to create or locate the private configuration, then follow [R2 setup](docs/r2-setup.md). The uploader processes one recording at a time, retains source identity, resumes pending work after restart and confirms uploads before marking them archived. It does not delete local files.
