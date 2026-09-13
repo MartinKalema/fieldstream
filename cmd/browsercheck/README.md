@@ -99,8 +99,9 @@ It never forwards browser Authorization, Cookie or Origin headers. Requests and
 responses are bounded to 256 KiB, with timeouts. No MediaMTX CORS changes are
 needed. This remains a local diagnostic, not a remote authenticated video portal.
 
-The copied `assets/reader.js` is unchanged MediaMTX 1.21.0 code. Its MIT license is
-included as `assets/mediamtx-LICENSE.txt`.
+The shared `internal/viewer/assets/reader.js` is unchanged MediaMTX 1.21.0 code.
+Its MIT license is included as `internal/viewer/assets/mediamtx-LICENSE.txt`.
+Both assets remain available from the same browser URLs.
 
 ## Checks and primary references
 

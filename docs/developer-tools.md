@@ -10,13 +10,21 @@ go run ./cmd/clockcheck --source camera-01
 
 Open the printed local URL. Point the broadcasting camera at the large clock and compare it with the clock visible in the local and forwarded videos. A screenshot containing all three clocks gives an approximate delay reading. This page does not calculate delay automatically; screen refresh, exposure and frame timing limit precision.
 
+The page uses two native browser video players with separate pause controls, picture-progress warnings and **Reconnect this viewer** buttons. An open connection does not prove that pictures are advancing. The warning watches browser presentation timestamps and keeps browser-default buffering unchanged. It does not establish the age of the original camera picture. See [how the warning works and what it cannot detect](picture-stall-warning.md).
+
 The page is embedded in the Go program, so a built executable needs no separate HTML file. Build a private local executable with:
 
 ```sh
 go build -o .tools/bin/clockcheck ./cmd/clockcheck
 ```
 
-The default page address is `127.0.0.1:19080`. Use `--listen 127.0.0.1:19082` if that port is already occupied. The tool accepts only loopback addresses. `--local-port` and `--forwarded-port` select viewer ports, defaulting to 18889 and 28889. `?source=camera-02` selects another source in the page. Stop this separate tool with Ctrl+C; it does not start or stop the video lab.
+The default page address is `127.0.0.1:19080`. Use `--listen 127.0.0.1:19082` if that port is already occupied. The tool accepts only loopback addresses. `--local-port` and `--forwarded-port` select fixed local viewer ports, defaulting to 18889 and 28889. By default, only the selected `--source` is allowed. To permit a second source explicitly:
+
+```sh
+go run ./cmd/clockcheck --source camera-01 --sources camera-01,camera-02
+```
+
+Then `?source=camera-02` selects that allowed source in the page. Up to four distinct source IDs can be allowed; a query cannot select an unlisted source. Opening the page creates two readers for its selected source. **Reconnect this viewer** changes only that reader. Stop this separate tool with Ctrl+C; it does not start or stop the video lab or change recordings and uploads.
 
 For the separate browser buffering experiment on port 19081, see [the browsercheck guide](../cmd/browsercheck/README.md).
 
@@ -57,7 +65,9 @@ To apply a wait update, stop broadcasting, scan the code with the device's Camer
 
 ```sh
 go test ./cmd/clockcheck
+node --test cmd/clockcheck/watch_test.mjs
+node --test cmd/clockcheck/app_test.mjs
 npm test --prefix scripts/qr-tools
 ```
 
-These checks use HTTP test requests and temporary, fake source settings. They do not contact cameras, start live media services or change the normal workspace settings. The older copies inside `.local/diagnostics/` and `.tools/qr-tools/` are private working artifacts; repository users should use the versioned tools above.
+These checks use HTTP test requests, controlled browser-observation inputs and temporary, fake source settings. They do not contact cameras, start live media services or change the normal workspace settings. The [isolated browser fixture](../cmd/clockcheck/testdata/fixture/README.md) exercises the production picture warnings through real browser media APIs using generated video. The older copies inside `.local/diagnostics/` and `.tools/qr-tools/` are private working artifacts; repository users should use the versioned tools above.
