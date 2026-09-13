@@ -346,9 +346,20 @@ software decoder, changing the receiver wait to 50 ms. During the movement test,
 they reported "no blocks now". That run ended at its time limit with exit code 0.
 Its private process report is `reports/gstreamer-check-1993220736/report.json`.
 Normal viewing now starts at 50 ms; use 100 ms if the broken picture returns.
-The clock has not yet measured the 50 ms trial, so reducing this setting does
-not prove a 50 ms reduction in total picture delay. Longer runs and difficult
-connections still need testing.
+
+At 02:56:07 on 13 September 2026, the observer supplied the first filmed-clock
+screenshot from normal viewing at 50 ms, using the local route and software
+decoder. The direct clock reads **202.23** and the first filmed clock appears
+to read **201.96**, giving approximately **0.27 seconds** of camera-to-screen
+delay. Two independent readings agreed, but the final filmed digit is ghosted;
+this is not a measurement precise to one hundredth of a second. Camera exposure,
+screen refresh and screenshot timing also add uncertainty.
+
+This is one observation, not an average or a maximum. It was taken at a different
+moment from the 100 ms trials, so it does not isolate the effect of changing the
+buffer. The configured wait is only part of total picture delay. Longer runs,
+difficult connections and repeated readings still need testing. Private evidence
+is saved in `reports/gstreamer-clock-50ms-20260913.json`.
 
 ### Normal-viewer checks and remaining work
 

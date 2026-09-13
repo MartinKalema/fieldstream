@@ -10,7 +10,7 @@ We want to control how long the player waits before showing a picture. The nativ
 
 The observations support further use, but do not prove a consistent speed improvement. At the 100 ms setting, one screenshot measured approximately **0.43 s** for both native and local browser viewing. Another measured **0.22 s native** and **0.36 s browser**. These are individual clock readings, not averages or maximum delays. [Trial record](../gstreamer-viewer.md).
 
-The 20 ms trial showed broken blocks during movement. They disappeared in the user's 100 ms repeat. The user then tried 50 ms and reported no blocks during the same movements. **Camera-to-screen delay at 50 ms has not been measured.** The configured wait is only one part of total delay.
+The 20 ms trial showed broken blocks during movement. They disappeared in the user's 100 ms repeat. The user then tried 50 ms and reported no blocks during the same movements. A subsequent filmed-clock screenshot at 50 ms showed approximately **0.27 s** of camera-to-screen delay; a ghosted final digit adds uncertainty. This single reading does not establish an average, a maximum or the effect of changing the buffer. The configured wait is only one part of total delay.
 
 ## Decision
 
@@ -40,6 +40,6 @@ A future Go service must check the person's permission for both the action and c
 
 The current native window has a generic OpenGL title. It has no picture-progress warning, automatic clock measurement or automatic reconnection. The clock target adds none of those features. Its process remaining open does not prove that fresh pictures are appearing.
 
-Before the browser removal, Go tests, vet and race checks passed, and a normal live viewer remained open for approximately 138 seconds, beyond the diagnostic's 120-second limit. That check covers process lifetime, not a measured picture-age bound. Repeat the relevant checks after code removal. Longer runs, poor connections and repeated camera-to-screen readings at 50 ms remain needed.
+Before the browser removal, a normal live viewer remained open for approximately 138 seconds, beyond the diagnostic's 120-second limit. That check covers process lifetime, not a measured picture-age bound. After removal, Go tests, vet, focused race checks and saved-video page tests passed. Full media acceptance passed 100 of 100 checks and fully decoded 52 finalized test recordings. These service checks do not test native screen presentation. Longer runs, poor connections and repeated camera-to-screen readings at 50 ms remain needed.
 
 Design and test login, camera permissions and media enforcement together before treating this as a system for separate users. Any future native progress warning and automatic delay measurement need their own display-level evidence; the retired browser tests cannot validate them.
