@@ -106,6 +106,8 @@ Testing also found that an unexpected source disconnect can leave an incomplete 
 
 Use `./lab recordings check --limit 20` to check a batch of completed local recordings, then `./lab recordings health` to see dated results. The check distinguishes video decode errors from checks that could not finish. It preserves the original files and upload history. This is an explicit command, not an automatic worker, and it does not measure visual quality or missing scenes. [Recording-health guide](docs/recording-health.md).
 
+To compare compression on one completed recording, use the separate [saved-video comparison tool](docs/compression-comparison.md). It creates two 20 fps candidates and compares file size, picture similarity and processing cost without changing live settings or the original recording.
+
 ## Optional R2 archive
 
 R2 is disabled in a fresh installation and is enabled in this configured workspace. Run `./lab archive-config` to create or locate the private configuration, then follow [R2 setup](docs/r2-setup.md). The uploader processes one recording at a time, retains source identity, resumes pending work after restart and confirms uploads before marking them archived. It does not delete local files.
