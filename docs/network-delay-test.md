@@ -86,6 +86,6 @@ The code-level tests check scoring of missing pictures, changed pixels and incon
 
 ## Limits
 
-These short trials do not establish long-term availability or behavior on a real radio network. They do not model bandwidth limits, long outages, network changes, power loss, multiple competing devices, camera exposure, browser buffering or thermal limits. The clip uses a one-second keyframe interval; another encoder or interval can change recovery. Packets still queued at shutdown are not used to score the excluded last second.
+These original delay-and-loss trials do not establish long-term availability or behavior on a real radio network. They do not model bandwidth limits, long outages, network changes, power loss, multiple competing devices, camera exposure, browser buffering or thermal limits. A separate, newer [bandwidth comparison](bandwidth-comparison.md) tests saved compression candidates under fixed rate limits; it does not extend the measurements or guarantees of the original trials. The clip here uses a one-second keyframe interval; another encoder or interval can change recovery. Packets still queued at shutdown are not used to score the excluded last second.
 
 After selecting a setting, repeat the physical filmed-clock check and observe picture quality over a longer period. Keep each connection's setting separate so the effect of a change can be measured.

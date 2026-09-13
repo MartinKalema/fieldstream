@@ -1,5 +1,11 @@
 # Controlled video network comparison
 
+For the separate rate-limit experiment, run `go run ./cmd/netcheck --bandwidth-compare`
+and follow the [bandwidth comparison guide](../../docs/bandwidth-comparison.md).
+It compares three saved encodings at unlimited, 1,500 and 900 kbps with a fixed
+120 ms recovery allowance. The method below describes the original delay, loss
+and interruption experiment, which remains the default command.
+
 Run `go run ./cmd/netcheck` from the project directory. The command uses the
 selected corrected MediaMTX binary, creates private test credentials and fresh
 loopback ports, and saves evidence under `.local/diagnostics/netcheck-<time>/`.
