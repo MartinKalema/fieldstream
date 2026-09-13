@@ -6,7 +6,7 @@ This repository contains the source, tests, build scripts and design notes. Cred
 
 Receive live video from several devices, watch each source locally, record it, and forward a separate copy. A source can be a phone, tablet, compatible camera or another computer. The sender needs H.264 video in MPEG-TS over SRT; other connection types need an adapter before they can join this version.
 
-The lab supports **up to four registered sources**. Each has its own credentials, viewer addresses, recorder and forwarding controls. Two video services run on one Mac and share its CPU, disk, network and power. This workspace currently has `camera-01` and `camera-02` registered. Two-source generated-video acceptance passed all 85 checks. Real devices and four-source capacity still need their own checks.
+The lab supports **up to four registered sources**. Each has its own credentials, viewer addresses, recorder and forwarding controls. Two video services run on one Mac and share its CPU, disk, network and power. This workspace currently has `camera-01` and `camera-02` registered. Two-source generated-video acceptance passed all 100 checks. Real devices and four-source capacity still need their own checks.
 
 A 1,252,488-byte generated recording was uploaded and confirmed in the private R2 bucket. See [the R2 check report](reports/latest-r2-check.json). R2 is now enabled in this workspace: normal recording will also queue those files for upload when the lab starts.
 
@@ -68,6 +68,7 @@ Put `--source` **before the command**:
 ./lab --source camera-01 status
 ./lab --source camera-01 relay-off
 ./lab --source camera-01 relay-on
+./lab --source camera-01 profile detail
 ./lab --source camera-02 profile small
 ./lab --source camera-02 profile copy
 ./lab --source camera-01 relay-wait 120
@@ -80,7 +81,11 @@ Without `--source`, control commands select the first configured source. `status
 
 `relay-off` stops only the selected source's forwarding program. Its local picture and recording should continue, as should the other sources. This is a forwarding-process experiment; it does not simulate real packet loss or an unplugged cable.
 
-`profile small` changes only the forwarded picture to 640 × 360 at 20 pictures per second, targeting about 650 kilobits per second. It uses more processing than forwarding unchanged video. `profile copy` restores the incoming compressed video without another video encode. A profile switch briefly interrupts the forwarded picture.
+`profile detail` keeps the incoming picture's pixel dimensions, sends 20 pictures per second, and targets 1,200 kilobits per second. For a 1280 × 720 camera, its output remains 1280 × 720. `profile small` changes the forwarded picture to 640 × 360 at 20 pictures per second, targeting about 650 kilobits per second. Both use more processing than forwarding unchanged video. `profile copy` restores the incoming compressed video without another video encode. A profile switch briefly interrupts the forwarded picture. These target rates do not include all network overhead or guarantee readable detail.
+
+See [the live profile trial](docs/live-detail-profile.md) for the settings, measurement procedure and rollback. The read-only `relaycheck` command measures forwarding CPU, sampled memory and received payload rate; use the clock and browser checks alongside it to assess delay and stalls.
+
+In two physical-camera repeats, `detail` forwarded roughly 37–40% less payload at 720p/20 fps, using 18–19% of one CPU core. Its ordinary filmed-clock readings were 0.42–0.46 seconds old, compared with 0.34–0.38 seconds for `copy`. A later copy screenshot showed both pictures over six seconds old despite ready service status, then recovered. The workspace keeps `copy` as its local baseline. [Live results and limitations](docs/live-detail-results.md).
 
 The selected source's incoming video and local recording are unchanged by the remote profile selection. Other sources keep their own settings. Audio is left out of forwarding and recording in this version.
 
@@ -130,7 +135,7 @@ The [archive crash-recovery checks](docs/archive-recovery.md) kill an isolated u
 ./lab test
 ```
 
-Register `camera-02` before using its demo commands. Each demo is a moving **test pattern**. Use `./lab stop` to finish the whole demonstration: it stops recorders before generated senders. To replace only one demo with a real device, use `./lab --source camera-01 demo-stop`; this removes that source and can leave an incomplete final frame. Other sources can keep sending. The acceptance test checks simultaneous decoding and recording, separate forwarding controls, both recovery waits, the smaller picture setting, rejected credentials and SQLite persistence. It requires the normal lab to be stopped and uses private, loopback-only settings and recordings. Reports go in `reports/`; the selected experimental receiver passed all **85 assertions**, including a frozen receiver, both forwarding links, full decoding of **44 finalized clips** and SQLite persistence after orderly shutdown. [Experimental receiver acceptance results](reports/integration-lan80-receiver.json).
+Register `camera-02` before using its demo commands. Each demo is a moving **test pattern**. Use `./lab stop` to finish the whole demonstration: it stops recorders before generated senders. To replace only one demo with a real device, use `./lab --source camera-01 demo-stop`; this removes that source and can leave an incomplete final frame. Other sources can keep sending. The acceptance test checks simultaneous decoding and recording, separate forwarding controls, both recovery waits, full-size and smaller 20 fps picture settings, rejected credentials and SQLite persistence. It requires the normal lab to be stopped and uses private, loopback-only settings and recordings. Reports go in `reports/`; the selected experimental receiver passed all **100 assertions**, including a frozen receiver, both forwarding links, full decoding of **54 finalized clips** and SQLite persistence after orderly shutdown. [Live-profile acceptance results](reports/integration-live-detail-profile.json).
 
 These tests do not measure camera-to-screen delay or establish long-term availability. The single-source generated browser check is recorded separately from media-file and two-source checks.
 

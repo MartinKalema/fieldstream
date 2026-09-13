@@ -20,6 +20,14 @@ The default page address is `127.0.0.1:19080`. Use `--listen 127.0.0.1:19082` if
 
 For the separate browser buffering experiment on port 19081, see [the browsercheck guide](../cmd/browsercheck/README.md).
 
+## Live forwarding cost
+
+```sh
+go run ./cmd/relaycheck --root . --source camera-01 --duration 30s
+```
+
+This reads the running forwarder's CPU, sampled memory and received payload rate. It saves a private report under `reports/relay-check-*` and changes no camera, service or upload settings. It rejects interrupted observations rather than averaging across a restart. It does not measure picture delay or freezes. Use it alongside the clock and browser checks; see [the command guide](../cmd/relaycheck/README.md) and [live profile trial](live-detail-profile.md).
+
 ## Private Larix QR codes
 
 The optional QR tools need Node.js 18 or newer and npm. These are development tools, not dependencies of the Go controller or an already configured camera.

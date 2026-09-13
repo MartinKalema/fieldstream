@@ -128,7 +128,7 @@ func run() error {
 	p := lab.NewPaths(absolute)
 	args := flags.Args()
 	if len(args) == 0 {
-		fmt.Println("Commands: setup, source list|add|guide, start, status, stop, demo, demo-stop, relay-off, relay-on, relay-link local|srt, relay-wait 120|300, profile copy|small, recordings check|health, archive-config, test, logs")
+		fmt.Println("Commands: setup, source list|add|guide, start, status, stop, demo, demo-stop, relay-off, relay-on, relay-link local|srt, relay-wait 120|300, profile copy|detail|small, recordings check|health, archive-config, test, logs")
 		fmt.Println("Choose a source: ./lab --source camera-02 profile small")
 		return nil
 	}
@@ -286,8 +286,8 @@ func run() error {
 				fmt.Printf("%s: forwarding link set to %s; its forwarded picture will briefly reconnect.\n", id, args[1])
 			}
 		case "profile":
-			if len(args) != 2 || (args[1] != "copy" && args[1] != "small") {
-				return errors.New("use ./lab --source SOURCE_ID profile copy or small")
+			if len(args) != 2 || (args[1] != "copy" && args[1] != "detail" && args[1] != "small") {
+				return errors.New("use ./lab --source SOURCE_ID profile copy, detail, or small")
 			}
 			err = p.ChangeSourceControl(id, func(c *lab.Control) { c.Profile = args[1] })
 			if err == nil {

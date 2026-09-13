@@ -38,8 +38,8 @@ func defaultControl() Control {
 }
 
 func (c Control) validate() error {
-	if c.Profile != "copy" && c.Profile != "small" {
-		return errors.New("picture profile must be copy or small")
+	if c.Profile != "copy" && c.Profile != "detail" && c.Profile != "small" {
+		return errors.New("picture profile must be copy, detail, or small")
 	}
 	if c.RelayWaitMS != 120 && c.RelayWaitMS != 300 {
 		return errors.New("forwarding recovery wait must be 120 or 300 milliseconds")
@@ -552,10 +552,21 @@ func demoCommand(s Settings, requested ...string) []string {
 }
 
 func relayCommand(s Settings, control Control, requested ...string) []string {
-	args := append(ffmpegBase(s), inputArgs(requested...)...)
-	if control.Profile == "small" {
+	args := ffmpegBase(s)
+	if control.Profile == "detail" {
+		// Before -i: avoid decoded-picture delay from frame threading. This
+		// single decoder thread needs separate capacity testing above 720p.
+		args = append(args, "-threads:v", "1")
+	}
+	args = append(args, inputArgs(requested...)...)
+	switch control.Profile {
+	case "detail":
+		// Preserve the camera's pixel dimensions. Only frame rate and compression
+		// change; this command belongs to forwarding, never local recording.
+		args = append(args, "-filter_threads", "1", "-vf", "fps=20", "-c:v", "libx264", "-threads", "2", "-preset", "veryfast", "-tune", "zerolatency", "-profile:v", "baseline", "-pix_fmt", "yuv420p", "-bf", "0", "-g", "20", "-keyint_min", "20", "-sc_threshold", "0", "-b:v", "1200k", "-maxrate", "1200k", "-bufsize", "600k")
+	case "small":
 		args = append(args, "-vf", "scale=640:360:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=640:360:(ow-iw)/2:(oh-ih)/2,fps=20", "-c:v", "libx264", "-threads", "2", "-preset", "veryfast", "-tune", "zerolatency", "-profile:v", "baseline", "-pix_fmt", "yuv420p", "-bf", "0", "-g", "20", "-b:v", "650k", "-maxrate", "650k", "-bufsize", "325k")
-	} else {
+	default:
 		args = append(args, "-c:v", "copy")
 	}
 	if control.RelayLink == "local" {
