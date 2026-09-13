@@ -67,6 +67,7 @@ type comparisonReport struct {
 	Playback       inputMedia `json:"playback"`
 	Variants       []Variant  `json:"variants"`
 	ComparisonNote string     `json:"comparison_note"`
+	TestScene      *testScene `json:"test_scene,omitempty"`
 }
 
 type decodedMedia struct {

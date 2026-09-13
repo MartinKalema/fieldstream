@@ -26,6 +26,9 @@ func TestOptionsRequireOneInputAndLoopback(t *testing.T) {
 		{"--recording", "one/file.mp4", "--listen", "0.0.0.0:19082"},
 		{"--recording", "one/file.mp4", "--listen", "example.com:19082"},
 		{"--report-dir", "saved", "extra"},
+		{"--test-scene", "fast-motion", "--recording", "one/file.mp4"},
+		{"--test-scene", "dim-noise", "--report-dir", "saved"},
+		{"--test-scene", "unknown"},
 	} {
 		if _, err := parseOptions(args, io.Discard); err == nil {
 			t.Fatalf("unsafe or ambiguous options accepted: %v", args)
@@ -36,6 +39,12 @@ func TestOptionsRequireOneInputAndLoopback(t *testing.T) {
 	}
 	if _, err := parseOptions([]string{"--recording", "one/file.mp4", "--listen", "127.0.0.1:0"}, io.Discard); err != nil {
 		t.Fatal(err)
+	}
+	for _, scene := range []string{"fast-motion", "fine-detail", "dim-noise"} {
+		cfg, err := parseOptions([]string{"--test-scene", scene, "--no-serve"}, io.Discard)
+		if err != nil || cfg.TestScene != scene || !cfg.NoServe {
+			t.Fatalf("valid generated scene rejected: %s %v", scene, err)
+		}
 	}
 }
 

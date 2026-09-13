@@ -27,8 +27,8 @@ import (
 )
 
 type options struct {
-	Root, Recording, ReportDir, Listen string
-	NoServe                            bool
+	Root, Recording, ReportDir, Listen, TestScene string
+	NoServe                                       bool
 }
 
 func parseOptions(args []string, output io.Writer) (options, error) {
@@ -38,13 +38,25 @@ func parseOptions(args []string, output io.Writer) (options, error) {
 	flags.StringVar(&cfg.Root, "root", ".", "project folder containing the recording catalog")
 	flags.StringVar(&cfg.Recording, "recording", "", "exact relative recording filename from the catalog")
 	flags.StringVar(&cfg.ReportDir, "report-dir", "", "reopen an existing comparison folder without encoding again")
+	flags.StringVar(&cfg.TestScene, "test-scene", "", "generated stress scene: fast-motion, fine-detail or dim-noise")
 	flags.StringVar(&cfg.Listen, "listen", "127.0.0.1:19082", "loopback address for the comparison page")
 	flags.BoolVar(&cfg.NoServe, "no-serve", false, "write the comparison report and exit")
 	if err := flags.Parse(args); err != nil {
 		return cfg, err
 	}
-	if flags.NArg() != 0 || (cfg.Recording == "") == (cfg.ReportDir == "") {
-		return cfg, errors.New("choose either --recording SESSION/FILE.mp4 or --report-dir FOLDER")
+	inputs := 0
+	for _, input := range []string{cfg.Recording, cfg.ReportDir, cfg.TestScene} {
+		if input != "" {
+			inputs++
+		}
+	}
+	if flags.NArg() != 0 || inputs != 1 {
+		return cfg, errors.New("choose exactly one of --recording SESSION/FILE.mp4, --report-dir FOLDER or --test-scene NAME")
+	}
+	if cfg.TestScene != "" {
+		if _, ok := sceneDefinition(cfg.TestScene); !ok {
+			return cfg, errors.New("test scene must be fast-motion, fine-detail or dim-noise")
+		}
 	}
 	host, port, err := net.SplitHostPort(cfg.Listen)
 	ip, parseErr := netip.ParseAddr(host)
@@ -185,7 +197,15 @@ func run(parent context.Context, args []string, output io.Writer) error {
 		// deadline after processing is done.
 		ctx, cancel := context.WithTimeout(parent, 3*time.Minute)
 		defer cancel()
-		if err := copyCatalogRecording(ctx, p, cfg.Recording, dir); err != nil {
+		var generated *testScene
+		if cfg.TestScene != "" {
+			fmt.Fprintln(output, "Creating a generated compression stress scene; this is not camera footage...")
+			scene, err := generateScene(ctx, dir, settings.FFmpeg, cfg.TestScene)
+			if err != nil {
+				return err
+			}
+			generated = &scene
+		} else if err := copyCatalogRecording(ctx, p, cfg.Recording, dir); err != nil {
 			return err
 		}
 		fmt.Fprintln(output, "Comparing two compression settings against the same saved video...")
@@ -193,6 +213,7 @@ func run(parent context.Context, args []string, output io.Writer) error {
 		if err != nil {
 			return err
 		}
+		report.TestScene = generated
 		if err := lab.AtomicJSON(filepath.Join(dir, "result.json"), report); err != nil {
 			return errors.New("comparison report could not be saved")
 		}
@@ -211,6 +232,10 @@ func run(parent context.Context, args []string, output io.Writer) error {
 }
 
 func printSummary(output io.Writer, report comparisonReport) {
+	if report.TestScene != nil {
+		fmt.Fprintln(output, "Generated test scene:", report.TestScene.Title)
+		fmt.Fprintln(output, report.TestScene.Note)
+	}
 	fmt.Fprintf(output, "Original: %.2f MB, %.2f pictures/second\n", float64(report.Input.Bytes)/1e6, report.Input.FPS)
 	for _, variant := range report.Variants {
 		saved := 100 * (1 - float64(variant.Bytes)/float64(report.Input.Bytes))
@@ -252,6 +277,12 @@ func readReport(dir string) (comparisonReport, error) {
 	if decoder.Decode(&extra) != io.EOF {
 		return report, errors.New("comparison report contains extra data")
 	}
+	if scene := report.TestScene; scene != nil {
+		expected, ok := sceneDefinition(scene.ID)
+		if !ok || *scene != expected || report.Input.Width != 1280 || report.Input.Height != 720 || report.Input.Frames != 150 || report.Input.FPS != 30 || report.Input.Duration != 5 {
+			return report, errors.New("generated scene evidence does not match a supported test recipe")
+		}
+	}
 	p := report.Playback
 	if p.File != "playback.mp4" || p.Bytes < 1 || p.Bytes > maximumInputBytes || p.Codec != report.Input.Codec || p.PixelFormat != report.Input.PixelFormat || p.Width != report.Input.Width || p.Height != report.Input.Height || p.Frames != report.Input.Frames || p.FPS <= 0 || p.Duration <= 0 || p.Duration > 15 || p.StartTime != 0 {
 		return report, errors.New("comparison playback copy is invalid or incomplete")
@@ -292,6 +323,12 @@ func reportFieldsPresent(data []byte) bool {
 	if json.Unmarshal(data, &top) != nil || !has(top, "created_at", "ffmpeg_version", "input", "playback", "variants") ||
 		json.Unmarshal(top["variants"], &variants) != nil || len(variants) != 2 {
 		return false
+	}
+	if raw, exists := top["test_scene"]; exists {
+		var scene map[string]json.RawMessage
+		if json.Unmarshal(raw, &scene) != nil || !has(scene, "id", "title", "note", "filter", "source_encoding") {
+			return false
+		}
 	}
 	for _, name := range []string{"input", "playback"} {
 		var media map[string]json.RawMessage
