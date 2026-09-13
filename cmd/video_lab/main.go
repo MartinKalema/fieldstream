@@ -36,7 +36,7 @@ func printViewers(p lab.Paths) error {
 		return err
 	}
 	for _, source := range lab.GetSources(settings) {
-		fmt.Printf("%s (%s)\n  Local: http://127.0.0.1:%d/%s\n  Forwarded: http://127.0.0.1:%d/%s\n", source.ID, source.Label, lab.Field.Web, source.ID, lab.Central.Web, source.ID)
+		fmt.Printf("%s (%s)\n  Watch locally: ./lab --source %s view local\n  Watch forwarded: ./lab --source %s view forwarded\n  Browser checks: http://127.0.0.1:%d/%s and http://127.0.0.1:%d/%s\n", source.ID, source.Label, source.ID, source.ID, lab.Field.Web, source.ID, lab.Central.Web, source.ID)
 	}
 	return nil
 }
@@ -128,11 +128,14 @@ func run() error {
 	p := lab.NewPaths(absolute)
 	args := flags.Args()
 	if len(args) == 0 {
-		fmt.Println("Commands: setup, source list|add|guide, start, status, stop, demo, demo-stop, relay-off, relay-on, relay-link local|srt, relay-wait 120|300, profile copy|detail|small, recordings check|health, archive-config, test, logs")
+		fmt.Println("Commands: setup, source list|add|guide, start, view [local|forwarded], status, stop, demo, demo-stop, relay-off, relay-on, relay-link local|srt, relay-wait 120|300, profile copy|detail|small, recordings check|health, archive-config, test, logs")
+		fmt.Println("Watch video: ./lab --source camera-01 view local (GStreamer; close its window or press Ctrl+C to stop viewing)")
 		fmt.Println("Choose a source: ./lab --source camera-02 profile small")
 		return nil
 	}
 	switch args[0] {
+	case "view":
+		return viewCommand(p, *selected, args[1:], os.Stdout, os.Stderr)
 	case "recordings":
 		return recordingsCommand(p, *selected, args[1:], os.Stdout)
 	case "setup":

@@ -34,13 +34,18 @@ For the separate browser buffering experiment on port 19081, see [the browser_ch
 
 ## Desktop viewer comparison
 
-With GStreamer installed, open a separate, time-limited viewer of a registered source:
+For normal viewing, use `./lab view`, or `./lab --source camera-02 view forwarded`.
+This opens GStreamer with a 50 ms receiver wait and stays open until closed.
+Use `--latency-ms 100` if movement causes broken blocks. It is a trusted local
+viewer; a user interface and server-enforced user roles remain future work.
+
+For a separate, time-limited comparison of a registered source:
 
 ```sh
 go run ./cmd/gstreamer_check --root . --source camera-01 --duration 120s
 ```
 
-Use `--route forwarded` for the forwarded picture or `--gst-launch /path/to/gst-launch-1.0` for a private installation. This command reads the existing loopback video endpoint and changes no camera, recording or upload settings. Its private report records the process outcome, not camera-to-screen delay. See [the GStreamer comparison guide](gstreamer-viewer.md) for installation details, the decoder choices and the filmed-clock method.
+The diagnostic keeps a **100 ms reference default**; add `--latency-ms 50` to compare the normal viewer's setting. Use `--route forwarded` for the forwarded picture or `--gst-launch /path/to/gst-launch-1.0` for another installation. Both commands automatically find this checkout's private runtime when installed. They read the existing loopback video endpoint and change no camera, recording or upload settings. Their private reports record the process outcome, not camera-to-screen delay. See [the GStreamer guide](gstreamer-viewer.md) for installation details, decoder choices and the filmed-clock method.
 
 ## Live forwarding cost
 

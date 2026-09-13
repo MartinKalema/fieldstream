@@ -410,7 +410,7 @@ func (p Paths) writeSourceConfiguration(settings Settings) error {
 	guides := map[string]string{}
 	var index strings.Builder
 	fmt.Fprintln(&index, "FIELD VIDEO LAB — SOURCES")
-	fmt.Fprintln(&index, "Each source has its own connection and viewer addresses. Multiple sources can send at the same time.")
+	fmt.Fprintln(&index, "Each source has its own connection and GStreamer viewing commands. Multiple sources can send at the same time.")
 	fmt.Fprintln(&index, "The files listed below contain passwords. Keep those files private.")
 	fmt.Fprintln(&index)
 	for _, source := range GetSources(settings) {
@@ -420,7 +420,7 @@ func (p Paths) writeSourceConfiguration(settings Settings) error {
 		}
 		guidePath := filepath.Join(p.Local, "connections", source.ID+".txt")
 		guides[guidePath] = guide
-		fmt.Fprintf(&index, "%s (%s)\nConnection instructions: %s\nNearby viewer: http://127.0.0.1:%d/%s\nForwarded viewer: http://127.0.0.1:%d/%s\n\n", source.Label, source.ID, guidePath, Field.Web, source.ID, Central.Web, source.ID)
+		fmt.Fprintf(&index, "%s (%s)\nConnection instructions: %s\nWatch locally: ./lab --source %s view local\nWatch forwarded: ./lab --source %s view forwarded\nBrowser checks: http://127.0.0.1:%d/%s and http://127.0.0.1:%d/%s\n\n", source.Label, source.ID, guidePath, source.ID, source.ID, Field.Web, source.ID, Central.Web, source.ID)
 	}
 	for name, guide := range guides {
 		if err := privateWrite(name, []byte(guide)); err != nil {

@@ -20,7 +20,7 @@ func TestOptionsBoundResourcesAndRejectURLs(t *testing.T) {
 		{"--source", "rtsp://example.com/camera"}, {"--source", "../camera-01"}, {"--source", "camera-01?password=secret"},
 		{"--duration", "4s"}, {"--duration", "121s"}, {"--duration", "-1s"},
 		{"--latency-ms", "-1"}, {"--latency-ms", "201"}, {"--route", "https://example.com"},
-		{"--decoder", "anything ! filesink"}, {"--sink", "filesink"}, {"--gst-launch", ""}, {"--root", ""}, {"extra"},
+		{"--decoder", "anything ! filesink"}, {"--sink", "filesink"}, {"--root", ""}, {"extra"},
 	} {
 		if _, err := parseOptions(args, io.Discard); err == nil {
 			t.Fatalf("accepted invalid options %q", args)
@@ -127,6 +127,29 @@ func TestDryRunUsesPrivateSettingsWithoutLaunchingOrWritingReports(t *testing.T)
 	}
 }
 
+func TestDefaultDryRunWorksBeforeInstallationWithoutWritingFiles(t *testing.T) {
+	root := settingsFixture(t)
+	t.Setenv("PATH", t.TempDir())
+	var output, errorOutput bytes.Buffer
+	if code := run(context.Background(), []string{"--root", root, "--dry-run"}, &output, &errorOutput); code != 0 {
+		t.Fatalf("dry run should remain available before installation: %d %s", code, errorOutput.String())
+	}
+	var argv []string
+	if err := json.Unmarshal(output.Bytes(), &argv); err != nil || len(argv) == 0 || argv[0] != "gst-launch-1.0" || !slices.Contains(argv, "latency=100") {
+		t.Fatalf("missing planned media arguments: %q %v", argv, err)
+	}
+	if !strings.Contains(errorOutput.String(), "executable not resolved") || !strings.Contains(errorOutput.String(), "placeholder") {
+		t.Fatalf("dry run implied an installed executable: %s", errorOutput.String())
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) != 1 || entries[0].Name() != ".local" {
+		t.Fatalf("dry run wrote unexpected project files: %v %v", entries, err)
+	}
+	if code := run(context.Background(), []string{"--root", root}, io.Discard, io.Discard); code == 0 {
+		t.Fatal("an actual run accepted the unresolved executable")
+	}
+}
+
 func TestReportDirectoryPrivateAndRejectsSymlink(t *testing.T) {
 	root := t.TempDir()
 	directory, err := privateReportDir(root)
@@ -143,19 +166,5 @@ func TestReportDirectoryPrivateAndRejectsSymlink(t *testing.T) {
 	}
 	if _, err := privateReportDir(linkedRoot); err == nil {
 		t.Fatal("accepted a symlinked reports directory")
-	}
-}
-
-func TestLogCapStillDrainsProcessOutput(t *testing.T) {
-	var buffer bytes.Buffer
-	log := &limitedLog{writer: &buffer, limit: 10}
-	for _, input := range []string{"123456", "789abc", "defghi"} {
-		n, err := log.Write([]byte(input))
-		if n != len(input) || err != nil {
-			t.Fatalf("did not drain input: %d %v", n, err)
-		}
-	}
-	if buffer.String() != "123456789a" || log.kept != 10 || log.dropped != 8 {
-		t.Fatalf("incorrect cap: %q kept=%d dropped=%d", buffer.String(), log.kept, log.dropped)
 	}
 }

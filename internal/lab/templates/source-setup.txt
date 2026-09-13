@@ -39,9 +39,15 @@ Audio: off for this first test
 Container: MPEG-TS, if the sender asks
 
 5. Save the connection and start sending video.
-6. On this computer, open these addresses in a browser:
-Nearby viewer: {{.NearbyViewerURL}}
-Simulated remote viewer: {{.RemoteViewerURL}}
+6. On this computer, open the picture in GStreamer:
+Local picture: ./lab --source {{.ID}} view local
+Forwarded picture: ./lab --source {{.ID}} view forwarded
+Close its video window or press Ctrl+C to stop viewing. Video services keep running.
+GStreamer installation and comparison instructions: docs/gstreamer-viewer.md
+
+Optional browser checks:
+Local: {{.NearbyViewerURL}}
+Forwarded: {{.RemoteViewerURL}}
 
 For a phone or tablet using Larix, allow camera and local-network access.
 Tap +, then choose "Connection". The RTMP address shown in the URL field is an

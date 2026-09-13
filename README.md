@@ -26,11 +26,16 @@ Open Terminal in this folder:
 ./lab source list
 ./lab source guide camera-01
 ./lab start
+./lab view
 ```
+
+Install the desktop viewer once with `scripts/install-gstreamer-runtime.sh` if
+GStreamer is not already installed. The viewing command finds this project's
+private runtime automatically; it does not install software itself.
 
 A fresh setup creates the first source, `camera-01`; repeating setup keeps existing sources. Open **SOURCES.txt** for the guide index. Private instructions for the first source are in **.local/connections/camera-01.txt**. The `source guide` command prints that file's location without printing its password.
 
-Put the source device and receiving computer on the same trusted local network. Enter the connection values from the private guide, then start sending. **Larix Broadcaster** is one suitable sender for a phone or tablet; the receiver does not require a particular device brand. Once setup is complete, the Mac's **Start Video Lab.command** launcher can also start the lab.
+Put the source device and receiving computer on the same trusted local network. Enter the connection values from the private guide, then start sending. **Larix Broadcaster** is one suitable sender for a phone or tablet; the receiver does not require a particular device brand. Once setup is complete, the Mac's **Start Video Lab.command** launcher starts the lab and opens its first configured source in GStreamer. If the camera is not sending yet, the viewer waits up to a minute. After that, start sending and run `./lab view` again.
 
 If this computer changes networks, stop the lab and run `./lab setup` again. Source IDs and passwords are kept. Update the address in each sender. A migrated single-source setup retains its credentials while changing the old `ipad` path to `camera-01`; update that sender's Stream ID from its new guide once.
 
@@ -42,7 +47,7 @@ The clock page also shows [picture-progress warnings](docs/picture-stall-warning
 
 Its optional [automatic picture-delay test](docs/automatic-picture-delay.md) reads a changing pattern filmed by the camera during a visible two-minute run. It reports approximate intervals and failed readings separately; the manual filmed clock remains a check on those estimates.
 
-The separate [GStreamer viewer experiment](docs/gstreamer-viewer.md) reads the same camera in a desktop window with an explicit small waiting buffer. It leaves the live setup unchanged and lets you compare the desktop and browser pictures using the filmed clock. Installing or opening it alone does not prove a speed improvement.
+[GStreamer is the normal live viewer](docs/gstreamer-viewer.md). It reads the external camera through the existing receiver and stays open until you close it. The browser tools remain available for measurements. The interface for signing in, choosing permitted cameras and managing user roles is still future work; changing the video viewer does not provide those access checks. [Viewer and interface decision](docs/decisions/003-gstreamer-live-viewer.md).
 
 ## Add another device
 
@@ -58,12 +63,30 @@ Register a separate source for each device while the lab is stopped. The example
 
 Configure that device using `.local/connections/camera-02.txt`. Both devices can send at the same time. Each password authorizes only its assigned source path. Source IDs start with a lowercase letter and contain up to 32 lowercase letters, digits or hyphens. The four-source limit bounds this implementation; it does not prove every computer can handle four streams at every setting.
 
-## Two viewers per source
+## Watch a source
+
+```sh
+./lab view
+./lab --source camera-02 view local
+./lab --source camera-01 view forwarded
+./lab --source camera-01 view local --latency-ms 100
+```
+
+The default is the first configured source, local picture, software decoder and
+**50 ms** of receiver waiting. The observer reported no broken blocks in a short
+movement trial at 50 ms. Use 100 ms if that problem returns. This setting is
+separate from the camera's waiting allowance and is not a total-delay guarantee.
+Close the video window or press Ctrl+C in its terminal to stop only that viewer.
+Each command opens one window; GStreamer currently calls all of them
+"OpenGL renderer", so use the source and route printed in each terminal to keep
+track. A stopped or failed connection requires reopening the viewer.
+
+Optional browser comparison addresses:
 
 - Local picture: <http://127.0.0.1:18889/camera-01>
 - Forwarded picture: <http://127.0.0.1:28889/camera-01>
 
-Use `/camera-02` for the second source, or run `./lab source list` for every address. Open viewers on **this computer**. `127.0.0.1` means the computer running the browser; another device cannot use these addresses to reach the lab. Only incoming source video is exposed on the local network.
+Use `/camera-02` for the second source, or run `./lab source list` for every viewing command and browser address. Open viewers on **this computer**. `127.0.0.1` means the computer running the viewer; another device cannot use these addresses to reach the lab. Only incoming source video is exposed on the local network. GStreamer currently has none of the browser comparison page's picture-progress warnings or automatic clock measurements.
 
 ## Try the experiments
 
@@ -155,7 +178,7 @@ If the controller disappears while video services remain, commands report those 
 
 ## Installation and boundaries
 
-Building from source requires Go 1.25 or newer. Running the built controller does not require Go or Python. Video processing requires FFmpeg and FFprobe with H.264 and SRT support. Setup downloads **MediaMTX 1.21.0** from its official GitHub release and checks the pinned SHA-256 checksum. It installs inside this folder and does not modify system packages.
+Building from source requires Go 1.25 or newer. Running the built controller does not require Go or Python. Video processing requires FFmpeg and FFprobe with H.264 and SRT support. The normal desktop viewer also requires GStreamer; [its installation guide](docs/gstreamer-viewer.md#runtime-used-on-this-mac) describes the pinned private macOS runtime. Setup downloads **MediaMTX 1.21.0** from its official GitHub release and checks the pinned SHA-256 checksum. It installs inside this folder and does not modify system packages.
 
 The physical-camera delay investigation reproduced a timing defect in that receiver's SRT library. A separate local correction is described in [the delay investigation](docs/delay-investigation.md). An explicit `.tools/mediamtx-active` directory link selects a locally built receiver; without it, the controller uses the official release. Setup continues to maintain the original release separately. A broken selection causes startup to fail instead of silently reverting.
 
