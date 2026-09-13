@@ -102,7 +102,9 @@ Each source's recorder runs separately from its forwarder. The recording budget 
 
 An incomplete file may remain after a crash. Only finished files listed in `segments.csv` are entered into the completed-file database. The controller flushes completed files before recording their metadata. Physical power-loss recovery has not been validated, and the program does not encrypt local recordings itself. Protect the Mac and its disk.
 
-Testing also found that an unexpected source disconnect can leave an incomplete compressed frame inside a finalized MP4. A checksum and an R2 confirmation prove that the saved bytes were copied; they do not prove that every frame can be decoded. The lab preserves that footage without repairing it, and does not yet display a separate recording-quality flag. Orderly shutdown stops the recorder before stopping a generated sender; it is a different case from losing a camera connection.
+Testing also found that an unexpected source disconnect can leave an incomplete compressed frame inside a finalized MP4. A checksum and an R2 confirmation prove that the saved bytes were copied; they do not prove that every frame can be decoded. The lab preserves that footage without repairing it. Orderly shutdown stops the recorder before stopping a generated sender; it is a different case from losing a camera connection.
+
+Use `./lab recordings check --limit 20` to check a batch of completed local recordings, then `./lab recordings health` to see dated results. The check distinguishes video decode errors from checks that could not finish. It preserves the original files and upload history. This is an explicit command, not an automatic worker, and it does not measure visual quality or missing scenes. [Recording-health guide](docs/recording-health.md).
 
 ## Optional R2 archive
 

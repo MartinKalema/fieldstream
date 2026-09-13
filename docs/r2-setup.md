@@ -62,7 +62,7 @@ This version uploads individual segments up to 64 MiB and reads them in small pi
 
 "Archived" records successful confirmation at upload time. The lab does not continuously audit R2 for later deletion or changes, manage remote retention, or provide an archive viewing interface.
 
-The checksum confirms the bytes that were saved; it does not prove every video frame is complete. Disconnect tests found that a sender can disappear partway through its final compressed frame. The MP4 file can be finalized but contain a damaged final frame. This version preserves and uploads those original bytes, without repairing or re-encoding them, and does not yet attach a video-health result to each archive entry. Orderly controller shutdown stops the recorder before its generated sender, avoiding that particular boundary during the normal acceptance test.
+The checksum confirms the bytes that were saved; it does not prove every video frame is complete. Disconnect tests found that a sender can disappear partway through its final compressed frame. The MP4 file can be finalized but contain a damaged final frame. This version preserves and uploads those original bytes, without repairing or re-encoding them. The separate [recording-health command](recording-health.md) can check local video and save dated results; it does not download or validate the current R2 object. Orderly controller shutdown stops the recorder before its generated sender, avoiding that particular boundary during the normal acceptance test.
 
 ## Validation status
 
