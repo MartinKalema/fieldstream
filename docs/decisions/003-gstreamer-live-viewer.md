@@ -10,13 +10,13 @@ We want to control how long the player waits before showing a picture. The nativ
 
 The observations support further use, but do not prove a consistent speed improvement. At the 100 ms setting, one screenshot measured approximately **0.43 s** for both native and local browser viewing. Another measured **0.22 s native** and **0.36 s browser**. These are individual clock readings, not averages or maximum delays. [Trial record](../gstreamer-viewer.md).
 
-The 20 ms trial showed broken blocks during movement. They disappeared in the user's 100 ms repeat. The user then tried 50 ms and reported no blocks during the same movements. **Camera-to-screen delay at 50 ms has not been measured.** The configured wait is only one part of total delay.
+The 20 ms trial showed broken blocks during movement. They disappeared in the user's 100 ms repeat. The user then tried 50 ms and reported no blocks during the same movements. A subsequent filmed-clock screenshot at 50 ms showed approximately **0.27 s** of camera-to-screen delay; a ghosted final digit adds uncertainty. This single reading does not establish an average, a maximum or the effect of changing the buffer. The configured wait is only one part of total delay.
 
 ## Decision
 
 Use GStreamer for `./lab view`, with **50 ms** as the normal starting setting and **100 ms** available when more waiting is needed. Keep the bounded `gstreamer_check` diagnostic at its **100 ms reference default**. Both commands share the same pipeline builder and process handling; their starting settings are deliberately different.
 
-Retain the browser comparison page for measurements and investigation. It is not a commitment to maintain two permanent user-facing products.
+Remove the old live browser players, their proxy, buffer experiment and optical measurement code. Disable the receiver's WebRTC listeners. Retain a standalone white elapsed clock for manual GStreamer delay readings and the independent saved-MP4 compression comparison page. Historical browser measurements remain documented; they are not current product features.
 
 ## Options considered
 
@@ -32,12 +32,14 @@ The native viewer is the selected next step. These local trials do not establish
 
 GStreamer displays video. A future interface still needs login, camera selection and permitted actions. Proposed roles could be **viewer** for assigned cameras, **operator** for approved stream controls, and **administrator** for account and permission management. These roles are not implemented.
 
-The current CLI trusts access to the Mac. The local media servers allow anonymous local reads of registered cameras and local management API access. The browser proxy restricts paths; it does not authenticate individual viewers. Adding a login screen alone would leave direct access around it.
+The current CLI trusts access to the Mac. The local media servers allow anonymous local RTSP reads of registered cameras and local management API access. Removing the browser proxy and listeners does not add individual user authentication. Adding a login screen alone would leave direct access around it.
 
 A future Go service must check the person's permission for both the action and camera. Media access must enforce that decision on every supported playback path; hiding a camera or button is insufficient. Replace the current anonymous local permissions in a separate, tested change, preserve distinct internal service credentials, and decide how permission removal affects an already open stream and offline use. Expose only selected status fields to the interface, never private settings or controller tokens.
 
 ## Consequences and next checks
 
-The current native window has a generic OpenGL title. It has no browser-style picture-progress warning and makes no automatic-reconnection promise. Its process remaining open does not prove that fresh pictures are appearing.
+The current native window has a generic OpenGL title. It has no picture-progress warning, automatic clock measurement or automatic reconnection. The clock target adds none of those features. Its process remaining open does not prove that fresh pictures are appearing.
 
-Next, measure repeated camera-to-screen readings at 50 ms alongside movement and interruptions. Design and test the login, camera permissions and media enforcement together before treating this as a system for separate users.
+Before the browser removal, a normal live viewer remained open for approximately 138 seconds, beyond the diagnostic's 120-second limit. That check covers process lifetime, not a measured picture-age bound. After removal, Go tests, vet, focused race checks and saved-video page tests passed. Full media acceptance passed 100 of 100 checks and fully decoded 52 finalized test recordings. These service checks do not test native screen presentation. Longer runs, poor connections and repeated camera-to-screen readings at 50 ms remain needed.
+
+Design and test login, camera permissions and media enforcement together before treating this as a system for separate users. Any future native progress warning and automatic delay measurement need their own display-level evidence; the retired browser tests cannot validate them.

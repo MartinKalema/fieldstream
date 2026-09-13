@@ -2,8 +2,10 @@
 
 GStreamer is a toolkit for receiving, processing and displaying video. It is now
 the normal live viewer for this lab. It opens the existing camera picture in a
-separate desktop window. The browser remains available for comparison and
-measurement. A working window alone does not establish that it is faster.
+separate desktop window. The old live browser players have been removed. A
+standalone white clock remains available for manual delay readings; the
+saved-video compression page remains a separate tool. A working window alone
+does not establish that it is faster.
 
 The Go command starts and stops the viewer. GStreamer handles the video.
 Each run reads an existing source and leaves camera, forwarding, recording and
@@ -61,8 +63,9 @@ run `scripts/install-gstreamer-runtime.sh` once to install the private runtime.
 No installation happens when opening a viewer.
 
 Each command opens one window. The current window title is "OpenGL renderer";
-the terminal identifies its source and route. This viewer does not yet have the
-browser page's picture-progress warnings or automatic clock measurement.
+the terminal identifies its source and route. This viewer has no
+picture-progress warning or automatic clock measurement. The retired browser
+features have not been transferred to GStreamer.
 
 It also does not provide user login or role-based access control (RBAC).
 Current playback trusts programs on this Mac. The future interface must check
@@ -92,7 +95,7 @@ when testing another device.
 
 The command stops after the requested time. Durations must be between 5 and 120
 seconds; the default is 30 seconds. Press Ctrl+C in the terminal to stop early.
-Stopping this viewer does not stop the camera or the normal browser players.
+Stopping this viewer does not stop the camera, other native viewers or the lab.
 
 Useful options:
 
@@ -176,15 +179,18 @@ time. [Platform display options](https://gstreamer.freedesktop.org/documentation
 ## Make a fair comparison
 
 1. Keep the same camera connection, picture size, frame rate, lighting and
-   forwarding profile. Open the existing clock comparison page on the Mac.
-2. Start a fresh GStreamer run of up to 120 seconds. Compare its local route
-   with the browser's local picture, or its forwarded route with the browser's
-   forwarded picture.
-3. Point the camera at only the white clock target. Keep the desktop viewer
-   beside the browser without covering that target. Allow playback to settle.
-4. Take several screenshots containing the direct clock, the browser's filmed
-   clock and the GStreamer window's filmed clock. For each picture, subtract
-   its filmed number from the direct clock number in that same screenshot.
+   forwarding profile. Run `go run ./cmd/clock_check` and open its printed local
+   address, normally `http://127.0.0.1:19080/`. This page displays only a clock.
+2. Start a fresh GStreamer diagnostic of up to 120 seconds for the chosen source
+   and route. Use 100 ms as a reference, then repeat at 50 ms with all other
+   settings unchanged. Use normal `./lab view` for a longer run.
+3. Point the camera at only the white clock target. Keep the native window
+   beside the clock without covering it. Keep the page visible and allow
+   playback to settle.
+4. Take several screenshots containing both the direct clock and the first
+   filmed clock inside the GStreamer window. Subtract the filmed number from
+   the direct clock number in that same screenshot. Ignore smaller repeated
+   copies of the clock inside the camera picture.
 5. Record unreadable clocks and any pauses as well as successful readings.
    Repeat the run before changing settings. Then change only one option, such
    as the decoder, and repeat under the same conditions.
@@ -194,15 +200,17 @@ give an approximate picture age of 0.30 seconds. Exposure, screen refresh,
 frame timing and screenshot capture limit this method's precision. A few
 screenshots cannot establish a guaranteed maximum delay.
 
-The browser uses WebRTC, the video connection method also used in video calls.
-The desktop experiment uses RTSP over TCP. A difference therefore compares
-**two complete viewer routes**; it does not isolate the window or decoder alone.
-Keep the number of open viewers and other computer work similar across runs.
+Keep the selected route, number of open native viewers and other computer work
+similar across runs. For a local-versus-forwarded comparison, two native
+windows can read the same camera through its two routes. Match each window to
+the command that opened it; both currently have the generic OpenGL title.
+Independent viewers can show different nearby frames, so one snapshot cannot
+isolate the time spent forwarding.
 
-The [automatic clock-pattern measurement](automatic-picture-delay.md) samples
-the browser's own videos. It does **not** read the separate GStreamer window.
-Use manual screenshots for the desktop comparison. Headless decoding and
-measurements taken before display cannot establish camera-to-screen delay.
+The removed [automatic pattern experiment](automatic-picture-delay.md) sampled
+only its browser players. It never read the separate GStreamer window. Current
+native readings are manual. Headless decoding and measurements taken before
+display cannot establish camera-to-screen delay.
 
 ## What the saved report proves
 
@@ -275,7 +283,7 @@ These generated tests establish basic installation and component compatibility.
 They do not establish physical camera-to-screen delay. The external camera was
 initially offline when the live comparison was attempted.
 
-### Physical camera trial on 13 September 2026
+### Historical physical camera trial on 13 September 2026
 
 The external iPad resumed broadcasting 1280 × 720 H.264 video. The observer
 confirmed the GStreamer desktop window displayed it while both browser players
@@ -298,13 +306,14 @@ one-picture decoded queue and camera settings are unchanged. This short trial
 does not establish long-term image reliability.
 Private evidence is saved in `reports/gstreamer-motion-quality-20260913.json`.
 
-### Simultaneous filmed-clock comparison
+### Historical simultaneous filmed-clock comparison
 
 The observer supplied two screenshots from a further 120-second run using the
 100 ms setting, software decoder and local route. Each image contains the
 direct clock, the native GStreamer window and both browser pictures. The table
 uses the first filmed white clock in each picture, excluding recursive copies.
-Two independent readings agreed on the digits.
+Two independent readings agreed on the digits. The browser players in these
+screenshots have since been removed; this table preserves the original results.
 
 | Screenshot time | Direct clock | GStreamer filmed clock → delay | Browser local filmed clock → delay | Browser forwarded filmed clock → delay |
 | --- | --- | --- | --- | --- |
@@ -321,7 +330,9 @@ screenshot capture limit the precision.
 The second forwarded browser picture was slightly newer than the local browser
 picture. These players present video independently; the difference does not
 mean that forwarding took negative time. GStreamer and the browser also use
-different receiving methods, so the result does not isolate decoding alone.
+different receiving methods: the browser used WebRTC and GStreamer used RTSP
+over TCP. The result therefore compares complete routes and does not isolate
+decoding or the window alone.
 
 The Mac's hardware decoder remains a possible controlled comparison with the
 same wait and camera settings, checking repeated delay readings and movement
@@ -335,6 +346,43 @@ software decoder, changing the receiver wait to 50 ms. During the movement test,
 they reported "no blocks now". That run ended at its time limit with exit code 0.
 Its private process report is `reports/gstreamer-check-1993220736/report.json`.
 Normal viewing now starts at 50 ms; use 100 ms if the broken picture returns.
-The clock has not yet measured the 50 ms trial, so reducing this setting does
-not prove a 50 ms reduction in total picture delay. Longer runs and difficult
-connections still need testing.
+
+At 02:56:07 on 13 September 2026, the observer supplied the first filmed-clock
+screenshot from normal viewing at 50 ms, using the local route and software
+decoder. The direct clock reads **202.23** and the first filmed clock appears
+to read **201.96**, giving approximately **0.27 seconds** of camera-to-screen
+delay. Two independent readings agreed, but the final filmed digit is ghosted;
+this is not a measurement precise to one hundredth of a second. Camera exposure,
+screen refresh and screenshot timing also add uncertainty.
+
+This is one observation, not an average or a maximum. It was taken at a different
+moment from the 100 ms trials, so it does not isolate the effect of changing the
+buffer. The configured wait is only part of total picture delay. Longer runs,
+difficult connections and repeated readings still need testing. Private evidence
+is saved in `reports/gstreamer-clock-50ms-20260913.json`.
+
+### Normal-viewer checks and remaining work
+
+Before the old browser code was removed, Go tests, vet and race checks passed.
+A normal live viewer remained open for approximately 138 seconds, beyond the
+diagnostic's 120-second limit. That verified the persistent command's lifetime;
+it did not measure picture age throughout the run.
+
+After removal on 13 September 2026, all Go tests and vet passed, along with
+focused race checks and the saved-video page tests. The full `./lab test` run
+passed **100 of 100 checks** and fully decoded **52 finalized recordings**. It
+covered two generated sources, rejected publishing credentials, forwarding
+interruptions and crashes, a paused receiver, picture profiles, and recording
+persistence across restart. There were no cleanup errors. Private evidence:
+`reports/integration-browser-removal-20260913.json`.
+
+The live camera and forwarding returned after the test. Saved source settings
+and controls were byte-for-byte unchanged; the browser video ports were closed.
+The new plain clock was inspected in the browser and its digits advanced.
+The local native pipeline entered playback, and a five-second forwarded
+headless GStreamer run ended normally. These startup and process checks do not
+establish visual quality or screen delay after the change.
+
+Longer viewing runs, poor connections and repeated end-to-end clock readings at
+50 ms are still pending. Native picture-progress warnings, automatic delay
+measurement, automatic reconnection and per-user permissions are not implemented.

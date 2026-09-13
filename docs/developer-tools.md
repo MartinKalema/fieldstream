@@ -1,20 +1,16 @@
 # Reusable local tools
 
-These tools are included in the source repository. Generated credentials, QR images, recordings and machine settings stay in the ignored `.local/` directory. Commands below run from the project root.
+These tools are included in the source repository. Credentials and machine settings stay in `.local/`; recordings and private reports stay in their own ignored directories. Commands below run from the project root.
 
 ## Filmed-clock comparison
 
 ```sh
-go run ./cmd/clock_check --source camera-01
+go run ./cmd/clock_check
 ```
 
-Open the printed local URL. Point the broadcasting camera at the large clock and compare it with the clock visible in the local and forwarded videos. A screenshot containing all three clocks gives an approximate manual delay reading; screen refresh, exposure and frame timing limit precision.
+Open the printed local URL and keep it visible. This page displays only a large white elapsed clock. It opens no video connection and performs no automatic measurement. Open the camera separately with `./lab --source camera-01 view local`, then point the broadcasting camera at the white clock.
 
-For the optional [automatic picture-delay test](automatic-picture-delay.md), press **Start 2-minute measurement** and film only the direct white clock and changing pattern. Keep the page visible. It samples each player at most twice per second and reports approximate marker-age intervals, with failed and skipped work reported separately. These intervals are not verified sensor capture times or guaranteed delay bounds; use the filmed clock to cross-check them.
-
-The [validation notes](automatic-picture-delay.md#checks-and-current-validation) record generated-video browser checks and a two-minute physical-camera run. That run accepted 192/232 local and 200/231 forwarded readings, with median midpoints of 0.340 and 0.370 seconds. Nearby manual clock observations are included with their timing limits; they do not establish exact accuracy or maximum delay.
-
-The page uses two native browser video players with separate pause controls, picture-progress warnings and **Reconnect this viewer** buttons. An open connection does not prove that pictures are advancing. The warning watches browser presentation timestamps and keeps browser-default buffering unchanged. It does not establish the age of the original camera picture. See [how the warning works and what it cannot detect](picture-stall-warning.md).
+Place the GStreamer window beside the clock without covering it. In one screenshot, subtract the clock filmed inside GStreamer from the direct clock. For example, 40.00 − 39.70 means approximately 0.30 seconds of picture delay. Repeat several times and record unreadable pictures and pauses too. Screen refresh, exposure, frame timing and screenshot capture limit precision; this does not establish a maximum delay.
 
 The page is embedded in the Go program, so a built executable needs no separate HTML file. Build a private local executable with:
 
@@ -22,15 +18,9 @@ The page is embedded in the Go program, so a built executable needs no separate 
 go build -o .tools/bin/clock_check ./cmd/clock_check
 ```
 
-The default page address is `127.0.0.1:19080`. Use `--listen 127.0.0.1:19082` if that port is already occupied. The tool accepts only loopback addresses. `--local-port` and `--forwarded-port` select fixed local viewer ports, defaulting to 18889 and 28889. By default, only the selected `--source` is allowed. To permit a second source explicitly:
+The default page address is `127.0.0.1:19080`. Use `--listen 127.0.0.1:19082` if that port is already occupied. The tool accepts only loopback addresses; `--listen` is its only setting. Select the camera and route in the GStreamer command, not the clock page. Stop the clock server with Ctrl+C; this does not stop the video lab or change recordings and uploads.
 
-```sh
-go run ./cmd/clock_check --source camera-01 --sources camera-01,camera-02
-```
-
-Then `?source=camera-02` selects that allowed source in the page. Up to four distinct source IDs can be allowed; a query cannot select an unlisted source. Opening the page creates two readers for its selected source. **Reconnect this viewer** changes only that reader. Stop this separate tool with Ctrl+C; it does not start or stop the video lab or change recordings and uploads.
-
-For the separate browser buffering experiment on port 19081, see [the browser_check guide](../cmd/browser_check/README.md).
+The old browser players, buffer experiment, playback warnings and automatic pattern reader have been removed. Their [warning findings](picture-stall-warning.md) and [automatic measurement results](automatic-picture-delay.md) remain historical notes. Those features have not been added to GStreamer.
 
 ## Desktop viewer comparison
 
@@ -53,7 +43,11 @@ The diagnostic keeps a **100 ms reference default**; add `--latency-ms 50` to co
 go run ./cmd/relay_check --root . --source camera-01 --duration 30s
 ```
 
-This reads the running forwarder's CPU, sampled memory and received payload rate. It saves a private report under `reports/relay-check-*` and changes no camera, service or upload settings. It rejects interrupted observations rather than averaging across a restart. It does not measure picture delay or freezes. Use it alongside the clock and browser checks; see [the command guide](../cmd/relay_check/README.md) and [live profile trial](live-detail-profile.md).
+This reads the running forwarder's CPU, sampled memory and received payload rate. It saves a private report under `reports/relay-check-*` and changes no camera, service or upload settings. It rejects interrupted observations rather than averaging across a restart. It does not measure picture delay or freezes. Use it alongside filmed-clock readings from GStreamer; see [the command guide](../cmd/relay_check/README.md) and [live profile trial](live-detail-profile.md).
+
+## Saved-video compression comparison
+
+The [saved-video comparison tool](compression-comparison.md) remains available. Its browser page compares completed MP4 files for size, detail and processing cost. It does not receive live video and does not depend on the removed browser players.
 
 ## Private Larix QR codes
 
@@ -83,10 +77,13 @@ To apply a wait update, stop broadcasting, scan the code with the device's Camer
 ## Check the tools
 
 ```sh
-go test ./cmd/clock_check
-node --test cmd/clock_check/watch_test.mjs
-node --test cmd/clock_check/app_test.mjs
+go test ./...
+go vet ./...
+go test -race ./...
+node --test cmd/quality_check/page_test.mjs
 npm test --prefix scripts/qr-tools
 ```
 
-These checks use HTTP test requests, controlled browser-observation inputs and temporary, fake source settings. They do not contact cameras, start live media services or change the normal workspace settings. The [isolated browser fixture](../cmd/clock_check/testdata/fixture/README.md) exercises the production picture warnings through real browser media APIs using generated video. The older copies inside `.local/diagnostics/` and `.tools/qr-tools/` are private working artifacts; repository users should use the versioned tools above.
+The ordinary checks use local test data and controlled processes; they do not validate the physical camera or a native display. Tests requiring extra media tools or explicit diagnostic environment settings can be skipped by their own prerequisites. The separate `./lab test` media acceptance run uses private test files but the normal lab's ports, so it requires the lab to be stopped. It does not test native picture presentation.
+
+Use repeated physical-camera readings, movement, interruptions and longer viewing runs as separate checks. A successful process run is not proof that every picture was recent.

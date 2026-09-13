@@ -286,10 +286,18 @@ func TestConfigurationLimitsNetworkAccess(t *testing.T) {
 	s := validTestSettings()
 	for _, central := range []bool{false, true} {
 		config := serverConfig(s, central)
-		for _, key := range []string{"apiAddress", "metricsAddress", "rtspAddress", "webrtcAddress", "webrtcLocalUDPAddress"} {
+		for _, key := range []string{"apiAddress", "metricsAddress", "rtspAddress"} {
 			host, _, err := net.SplitHostPort(config[key].(string))
 			if err != nil || !net.ParseIP(host).IsLoopback() {
 				t.Errorf("%s exposed beyond loopback: %v", key, config[key])
+			}
+		}
+		if config["webrtc"] != false || config["rtsp"] != true || config["srt"] != true {
+			t.Fatal("browser playback must be disabled while native viewing and camera input remain enabled")
+		}
+		for key := range config {
+			if strings.HasPrefix(key, "webrtc") && key != "webrtc" {
+				t.Fatalf("unused browser listener setting remains: %s", key)
 			}
 		}
 		users := config["authInternalUsers"].([]any)
@@ -333,14 +341,12 @@ func TestSourceSetupRendersCurrentSettings(t *testing.T) {
 		"Encryption passphrase: " + settings.PublishPassphrase + "\n",
 		"Local picture: ./lab --source " + source.ID + " view local\n",
 		"Forwarded picture: ./lab --source " + source.ID + " view forwarded\n",
-		fmt.Sprintf("Local: http://127.0.0.1:%d/%s\n", Field.Web, source.ID),
-		fmt.Sprintf("Forwarded: http://127.0.0.1:%d/%s\n", Central.Web, source.ID),
 	} {
 		if !strings.Contains(guide, expected) {
 			t.Error("a connection field did not match the supplied settings")
 		}
 	}
-	for _, unexpected := range []string{"{{", "}}", "%!", "%s", "%d", "<no value>", settings.RelayPassword, settings.CentralPassphrase} {
+	for _, unexpected := range []string{"{{", "}}", "%!", "%s", "%d", "<no value>", "http://127.0.0.1", "Optional browser checks", settings.RelayPassword, settings.CentralPassphrase} {
 		if strings.Contains(guide, unexpected) {
 			t.Error("guide contains an unresolved placeholder or unrelated relay secret")
 		}
@@ -391,6 +397,9 @@ func TestAddSourceMigratesCredentialsAndWritesSeparatePrivateGuides(t *testing.T
 	index, err := os.ReadFile(filepath.Join(p.Root, "SOURCES.txt"))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if strings.Contains(string(index), "http://") || strings.Contains(string(index), "Browser checks") {
+		t.Fatal("source index still advertises retired browser playback")
 	}
 	for _, source := range settings.Sources {
 		if !strings.Contains(string(index), source.ID+".txt") || strings.Contains(string(index), source.PublisherPassword) || strings.Contains(string(index), source.PublishPassphrase) {

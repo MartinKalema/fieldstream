@@ -41,6 +41,47 @@ func TestMediaLogOpenFailureStillDrainsOutput(t *testing.T) {
 	}
 }
 
+func TestRetiredBrowserPortIsDetectedButNotRequiredForStartup(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	port := listener.Addr().(*net.TCPAddr).Port
+	// Keep this test independent of the running lab. Zero reserves an available
+	// port in startup checks and cannot connect to an existing receiver.
+	originalField, originalCentral, originalLegacy := Field, Central, legacyBrowserTCPPorts
+	Field, Central, legacyBrowserTCPPorts = Ports{}, Ports{}, [2]int{port, 0}
+	t.Cleanup(func() { Field, Central, legacyBrowserTCPPorts = originalField, originalCentral, originalLegacy })
+	settings := validTestSettings()
+	settings.Host = "127.0.0.1"
+	if !mediaServicesPresent(settings) {
+		t.Fatal("lost detection of an old receiver with only its browser listener remaining")
+	}
+	if err := checkPorts(settings); err != nil {
+		t.Fatalf("retired browser port is still reserved for new servers: %v", err)
+	}
+}
+
+func TestNativeRTSPPortStillBlocksConflictingStartup(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	originalField, originalCentral, originalLegacy := Field, Central, legacyBrowserTCPPorts
+	Field, Central, legacyBrowserTCPPorts = Ports{RTSP: listener.Addr().(*net.TCPAddr).Port}, Ports{}, [2]int{}
+	t.Cleanup(func() { Field, Central, legacyBrowserTCPPorts = originalField, originalCentral, originalLegacy })
+	settings := validTestSettings()
+	settings.Host = "127.0.0.1"
+	if !mediaServicesPresent(settings) {
+		t.Fatal("native media listener is no longer detected")
+	}
+	if err := checkPorts(settings); err == nil {
+		t.Fatal("startup accepted an occupied native media listener")
+	}
+}
+
 func TestControlChangesStayWithinSelectedSource(t *testing.T) {
 	p := NewPaths(t.TempDir())
 	if err := os.MkdirAll(p.Local, 0700); err != nil {

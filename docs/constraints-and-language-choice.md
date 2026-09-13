@@ -60,7 +60,7 @@ flowchart TD
     B --> C["Local viewer for each source"]
     B --> D["One FFmpeg recorder per source"]
     B --> E["One FFmpeg forwarder per source"]
-    E --> F["Remote MediaMTX and browser"]
+    E --> F["Remote MediaMTX and GStreamer viewer"]
     D --> G["Local recording files"]
     G --> H["Go uploader"]
     H --> I["Private Cloudflare R2 archive"]
@@ -100,7 +100,7 @@ The strongest shortlist for our custom deployed program is Go and Rust. Both can
 | **Java / Kotlin on the JVM** | Suitable for reliable services. Can ship a bundled Java runtime; no large framework is required. | Credible alternative, but no current JVM-specific integration gives it an advantage here. |
 | **C# / .NET** | Supports Linux and native compilation, including ARM64. Native deployment has library compatibility restrictions to check. | Credible alternative, but no current .NET-specific requirement. |
 | **Python** | Can manage concurrent network and subprocess work. Needs a tested interpreter or application bundle; optional type checking requires a deliberate policy. | Suitable for optional offline analysis. Do not introduce it as a required deployed service language. |
-| **TypeScript** | Fits a browser interface and can also support a server. Another deployed runtime is unnecessary for this controller. | Use for a custom browser interface if the built-in viewer becomes insufficient. |
+| **TypeScript** | Fits a browser interface and can also support a server. Another deployed runtime is unnecessary for this controller. | An option for a future web interface; native video viewing now uses GStreamer. |
 
 Primary references: [Go runtime](https://go.dev/doc/faq), [Rust ownership](https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html), [bundling Java](https://docs.oracle.com/en/java/javase/25/docs/specs/man/jlink.html), [.NET native compilation](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/), and [Python concurrent I/O](https://docs.python.org/3/library/asyncio.html). The ranking is our judgment for this project, not a comparative benchmark.
 

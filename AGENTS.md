@@ -13,6 +13,6 @@
 - Use snake_case for command directories under `cmd/`, such as `net_check`, `relay_check`, and `video_lab`, consistent with Go source file names.
 - Application and diagnostic commands are written in Go. FFmpeg and MediaMTX handle media processing. Do not introduce a Python application dependency.
 - Preserve running camera connections, recordings and uploads when performing unrelated repository work.
-- Use `go test ./...` and `go vet ./...` for Go changes. Browser metric tests run with `node --test cmd/browser_check/metrics_test.mjs`.
+- Use `go test ./...` and `go vet ./...` for Go changes. Saved-video comparison tests run with `node --test cmd/quality_check/page_test.mjs`; the live viewer is GStreamer.
 - Full media acceptance uses `./lab test`. It exercises isolated generated streams and takes longer; run it for relevant media behavior changes, not documentation-only edits.
 - Explain system choices and measured limits in plain English. Do not present short local tests as proof of production reliability or a guaranteed maximum delay.
