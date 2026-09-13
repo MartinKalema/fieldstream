@@ -37,6 +37,15 @@ const toolbar = `<aside class="fixture-toolbar" aria-label="Test fixture control
 <button id="fixture-end-forwarded" type="button">TEST: End forwarded connection</button>
 <button id="fixture-pause-forwarded-player" type="button">TEST: Pause forwarded player</button>
 <button id="fixture-play-forwarded-player" type="button">TEST: Play forwarded player</button>
+</div>
+<p>Start the production age measurement below, then test the forwarded picture's optical marker. The local marker stays current.</p>
+<div>
+<button id="fixture-age-normal" type="button">TEST: Current marker</button>
+<button id="fixture-age-delay" type="button">TEST: Add 1 second to marker</button>
+<button id="fixture-age-freeze" type="button">TEST: Freeze marker; keep frames moving</button>
+<button id="fixture-age-blank" type="button">TEST: No marker</button>
+<button id="fixture-age-wrong-session" type="button">TEST: Wrong marker session</button>
+<button id="fixture-age-two" type="button">TEST: Two readable markers</button>
 </div><pre id="fixture-status" aria-live="polite">TEST sources starting…</pre>
 </aside>`
 
@@ -84,7 +93,7 @@ func readProjectFile(root, relative string) ([]byte, error) {
 }
 
 func pageHandler(cfg options) (http.Handler, error) {
-	page, err := readProjectFile(cfg.root, "cmd/clockcheck/clock.html")
+	page, err := readProjectFile(cfg.root, "cmd/clock_check/clock.html")
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +116,12 @@ func pageHandler(cfg options) (http.Handler, error) {
 	}
 	assets := map[string]asset{"/": {rendered.Bytes(), "text/html; charset=utf-8"}}
 	for route, file := range map[string]string{
-		"/app.mjs": "cmd/clockcheck/assets/app.mjs", "/watch.mjs": "cmd/clockcheck/assets/watch.mjs",
-		"/style.css": "cmd/clockcheck/assets/style.css",
+		"/app.mjs": "cmd/clock_check/assets/app.mjs", "/watch.mjs": "cmd/clock_check/assets/watch.mjs",
+		"/style.css":   "cmd/clock_check/assets/style.css",
+		"/optical.mjs": "cmd/clock_check/assets/optical.mjs", "/age.mjs": "cmd/clock_check/assets/age.mjs",
+		"/qr-worker.js":     "cmd/clock_check/assets/qr-worker.js",
+		"/vendor/qrcode.js": "cmd/clock_check/assets/vendor/qrcode.js",
+		"/vendor/jsQR.js":   "cmd/clock_check/assets/vendor/jsQR.js",
 	} {
 		data, err := readProjectFile(cfg.root, file)
 		if err != nil {
@@ -139,7 +152,7 @@ func pageHandler(cfg options) (http.Handler, error) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src blob:; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; connect-src 'self'; media-src blob:; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
 			w.WriteHeader(http.StatusMethodNotAllowed)

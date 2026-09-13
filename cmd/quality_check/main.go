@@ -1,4 +1,4 @@
-// qualitycheck compares compression settings on one saved recording. It never
+// quality_check compares compression settings on one saved recording. It never
 // changes the live profiles, starts media services, or contacts the archive.
 package main
 
@@ -33,7 +33,7 @@ type options struct {
 
 func parseOptions(args []string, output io.Writer) (options, error) {
 	var cfg options
-	flags := flag.NewFlagSet("qualitycheck", flag.ContinueOnError)
+	flags := flag.NewFlagSet("quality_check", flag.ContinueOnError)
 	flags.SetOutput(output)
 	flags.StringVar(&cfg.Root, "root", ".", "project folder containing the recording catalog")
 	flags.StringVar(&cfg.Recording, "recording", "", "exact relative recording filename from the catalog")

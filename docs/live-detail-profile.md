@@ -73,8 +73,8 @@ each run. Let a profile switch settle before observing it. Compare `copy` and
 possible. Do not compile or run media acceptance tests during measurements.
 
 ```sh
-go build -o .tools/bin/relaycheck ./cmd/relaycheck
-.tools/bin/relaycheck --root . --source camera-01 --duration 30s
+go build -o .tools/bin/relay_check ./cmd/relay_check
+.tools/bin/relay_check --root . --source camera-01 --duration 30s
 ```
 
 This reports the forwarder's CPU, average and maximum sampled memory, and the
@@ -85,7 +85,7 @@ The private JSON report is saved under ignored `reports/relay-check-*`.
 
 A process restart, missing observation, stale status, changed publisher or
 backwards counter makes the entire observation inconclusive. It cannot quietly
-join measurements across a reconnect. See [relaycheck's measurement limits](../cmd/relaycheck/README.md).
+join measurements across a reconnect. See [relay_check's measurement limits](../cmd/relay_check/README.md).
 
 Use two separate observations alongside that command:
 
@@ -94,7 +94,7 @@ Use two separate observations alongside that command:
    the time inside each video from the large clock to estimate picture age.
    Take at least three readings per profile. Screen refresh, camera exposure
    and frame selection limit precision.
-2. Run the [browser check](../cmd/browsercheck/README.md) on the forwarded route.
+2. Run the [browser check](../cmd/browser_check/README.md) on the forwarded route.
    Both of its players read that route; they compare browser buffering choices,
    not compression profiles. Compare each same browser mode across sequential
    `copy` and `detail` runs. Keep the extra reader load constant. Report missing
@@ -133,6 +133,6 @@ restart preserved their metadata and checksums; test cleanup reported no errors.
 [Private integration report](../reports/integration-live-detail-profile.json).
 
 Go package tests, `go vet ./...`, the browser metric tests, and focused
-relaycheck race tests passed. The measurement tests cover unavailable counters,
+relay_check race tests passed. The measurement tests cover unavailable counters,
 counter resets, process identity changes and cancellation of nested diagnostic
 processes. These checks do not qualify a physical camera or a real connection.

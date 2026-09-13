@@ -47,6 +47,13 @@ func TestClockCheckPageAndRestrictedAssets(t *testing.T) {
 		{"GET", "/.local/settings.json", "", 404}, {"GET", "/assets/", "", 404},
 		{"GET", "/app.mjs", "requestVideoFrameCallback", 200},
 		{"GET", "/watch.mjs", "createWatch", 200},
+		{"GET", "/age.mjs", "createAge", 200},
+		{"GET", "/optical.mjs", "Start a new test", 200},
+		{"GET", "/qr-worker.js", "importScripts", 200},
+		{"GET", "/vendor/qrcode.js", "QRCode", 200},
+		{"GET", "/vendor/jsQR.js", "jsQR", 200},
+		{"GET", "/vendor/", "", 404},
+		{"GET", "/vendor/other.js", "", 404},
 		{"GET", "/reader.js", "MediaMTXWebRTCReader", 200},
 		{"GET", "/mediamtx-LICENSE.txt", "MIT", 200},
 		{"GET", "/style.css", "", 200}, {"HEAD", "/app.mjs", "", 200},
@@ -70,7 +77,7 @@ func TestClockCheckPageAndRestrictedAssets(t *testing.T) {
 			t.Fatal("response can be cached")
 		}
 		if tc.path == "/" && tc.method == "GET" {
-			for _, want := range []string{`id="local-video"`, `id="forwarded-video"`, "Camera age is not verified", "does not calculate delay automatically"} {
+			for _, want := range []string{`id="local-video"`, `id="forwarded-video"`, "Camera age is not verified", `id="delay-marker"`, "not a guaranteed delay bound"} {
 				if !strings.Contains(rec.Body.String(), want) {
 					t.Fatalf("missing %q", want)
 				}

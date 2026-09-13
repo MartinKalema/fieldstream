@@ -40,6 +40,8 @@ Use [the diagnostic tools guide](docs/developer-tools.md) to run the local-versu
 
 The clock page also shows [picture-progress warnings](docs/picture-stall-warning.md) for each player. A connection can remain open while its picture stops advancing. These warnings check browser playback; use the filmed clock to establish how old the camera picture is.
 
+Its optional [automatic picture-delay test](docs/automatic-picture-delay.md) reads a changing pattern filmed by the camera during a visible two-minute run. It reports approximate intervals and failed readings separately; the manual filmed clock remains a check on those estimates.
+
 ## Add another device
 
 Register a separate source for each device while the lab is stopped. The example below applies when `camera-02` does not already exist; use `source list` first. This workspace already has both example sources.
@@ -85,7 +87,7 @@ Without `--source`, control commands select the first configured source. `status
 
 `profile detail` keeps the incoming picture's pixel dimensions, sends 20 pictures per second, and targets 1,200 kilobits per second. For a 1280 × 720 camera, its output remains 1280 × 720. `profile small` changes the forwarded picture to 640 × 360 at 20 pictures per second, targeting about 650 kilobits per second. Both use more processing than forwarding unchanged video. `profile copy` restores the incoming compressed video without another video encode. A profile switch briefly interrupts the forwarded picture. These target rates do not include all network overhead or guarantee readable detail.
 
-See [the live profile trial](docs/live-detail-profile.md) for the settings, measurement procedure and rollback. The read-only `relaycheck` command measures forwarding CPU, sampled memory and received payload rate; use the clock and browser checks alongside it to assess delay and stalls.
+See [the live profile trial](docs/live-detail-profile.md) for the settings, measurement procedure and rollback. The read-only `relay_check` command measures forwarding CPU, sampled memory and received payload rate; use the clock and browser checks alongside it to assess delay and stalls.
 
 In two physical-camera repeats, `detail` forwarded roughly 37–40% less payload at 720p/20 fps, using 18–19% of one CPU core. Its ordinary filmed-clock readings were 0.42–0.46 seconds old, compared with 0.34–0.38 seconds for `copy`. A later copy screenshot showed both pictures over six seconds old despite ready service status, then recovered. The workspace keeps `copy` as its local baseline. [Live results and limitations](docs/live-detail-results.md).
 

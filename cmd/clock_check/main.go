@@ -1,4 +1,4 @@
-// clockcheck serves the filmed clock and per-viewer playback-stall warnings.
+// clock_check serves the filmed clock and per-viewer playback-stall warnings.
 // It never changes camera connections, recording or forwarding settings.
 package main
 
@@ -42,7 +42,7 @@ type options struct {
 func parseOptions(args []string, output io.Writer) (options, error) {
 	var cfg options
 	var sources string
-	flags := flag.NewFlagSet("clockcheck", flag.ContinueOnError)
+	flags := flag.NewFlagSet("clock_check", flag.ContinueOnError)
 	flags.SetOutput(output)
 	flags.StringVar(&cfg.Listen, "listen", "127.0.0.1:19080", "loopback IP and port for this page")
 	flags.StringVar(&cfg.Source, "source", "camera-01", "source ID shown initially")
@@ -112,7 +112,7 @@ func pageHandler(cfg options) (http.Handler, error) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src blob:; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; connect-src 'self'; media-src blob:; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 		if strings.HasPrefix(r.URL.Path, "/whep/") {
 			origin, site := r.Header.Get("Origin"), r.Header.Get("Sec-Fetch-Site")
 			if (origin != "" && origin != "http://"+cfg.Listen) || (site != "" && site != "same-origin" && site != "none") {
@@ -151,8 +151,9 @@ func pageHandler(cfg options) (http.Handler, error) {
 			if r.Method != http.MethodHead {
 				_, _ = w.Write(data)
 			}
-		case "/app.mjs", "/watch.mjs", "/style.css":
-			if strings.HasSuffix(r.URL.Path, ".mjs") {
+		case "/app.mjs", "/watch.mjs", "/optical.mjs", "/age.mjs", "/qr-worker.js", "/style.css",
+			"/vendor/qrcode.js", "/vendor/jsQR.js", "/vendor/qrcode-LICENSE.txt", "/vendor/jsqr-LICENSE.txt", "/vendor/dijkstrajs-LICENSE.txt", "/vendor/manifest.json":
+			if strings.HasSuffix(r.URL.Path, ".mjs") || strings.HasSuffix(r.URL.Path, ".js") {
 				w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 			}
 			static.ServeHTTP(w, r)
